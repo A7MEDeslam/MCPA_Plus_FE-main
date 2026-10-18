@@ -1,0 +1,17 @@
+<div class="dialog-box">
+  <h3>Add Cost Center</h3>
+
+  <div class="field">
+    <label>Name</label>
+    <input type="text" [(ngModel)]="name" placeholder="Cost center name" />
+  </div>
+
+  <p class="error" *ngIf="error">{{ error }}</p>
+
+  <div class="footer-buttons">
+    <button type="button" class="cancel-btn" (click)="cancel.emit()">Cancel</button>
+    <button type="button" class="save-btn" [disabled]="isSaving" (click)="save()">
+      {{ isSaving ? 'Saving...' : 'Save' }}
+    </button>
+  </div>
+</div>

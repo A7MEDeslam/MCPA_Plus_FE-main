@@ -1,0 +1,95 @@
+    <div class="top">
+      <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+
+      <div class="identity">
+        <h2 class="name">{{ customer().companyName }}</h2>
+        <ul class="facts">
+          @if (customer().industryTypeName) {
+            <li>
+              <i class="pi pi-briefcase" aria-hidden="true"></i>{{ customer().industryTypeName }}
+            </li>
+          }
+          @if (place()) {
+            <li>
+              <i class="pi pi-map-marker" aria-hidden="true"></i>
+              @if (mapUrl(); as url) {
+                <a [href]="url" target="_blank" rel="noopener">{{ place() }}</a>
+              } @else {
+                {{ place() }}
+              }
+            </li>
+          }
+          <li>
+            <i class="pi pi-user" aria-hidden="true"></i>
+            @if (customer().assignedToName) {
+              {{ customer().assignedToName }}
+            } @else if (canManage()) {
+              <button type="button" class="assign-link" (click)="assign.emit()">
+                Assign owner
+              </button>
+            } @else {
+              <span class="muted">Unassigned</span>
+            }
+          </li>
+        </ul>
+      </div>
+
+      @if (canManage()) {
+        <div class="actions">
+          @if (canRequestUpgrade()) {
+            <button type="button" class="ui-btn ui-btn--primary" (click)="requestUpgrade.emit()">
+              <i class="pi pi-arrow-up-right" aria-hidden="true"></i>
+              Request upgrade
+              @if (nextStageLabel()) {
+                to {{ nextStageLabel() }}
+              }
+            </button>
+          }
+          <button type="button" class="ui-btn ui-btn--ghost" (click)="edit.emit()">
+            <i class="pi pi-pencil" aria-hidden="true"></i> Edit details
+          </button>
+          <app-action-menu label="More actions">
+            <button type="button" class="ui-menu-item" role="menuitem" (click)="assign.emit()">
+              <i class="pi pi-user-edit" aria-hidden="true"></i> Assign owner
+            </button>
+            <button type="button" class="ui-menu-item" role="menuitem" (click)="activities.emit()">
+              <i class="pi pi-comments" aria-hidden="true"></i> Activities
+            </button>
+            <hr class="ui-menu-sep" />
+            <button
+              type="button"
+              class="ui-menu-item ui-menu-item--danger"
+              role="menuitem"
+              (click)="remove.emit()"
+            >
+              <i class="pi pi-trash" aria-hidden="true"></i> Delete customer
+            </button>
+          </app-action-menu>
+        </div>
+      }
+    </div>
+
+    <div class="stage">
+      <div class="stage-line">
+        <app-badge [tone]="stage().tone">{{ stage().label }}</app-badge>
+        <span class="next">
+          @if (nextStageLabel()) {
+            Next stage: {{ nextStageLabel() }}
+          } @else {
+            Final stage reached
+          }
+        </span>
+      </div>
+      <app-stage-track [steps]="steps" [current]="stageIndex()" ariaLabel="Customer stage" />
+    </div>
+
+    @if (pendingTo()) {
+      <div class="pending" role="status">
+        <i class="pi pi-clock" aria-hidden="true"></i>
+        <div>
+          <strong>Stage change awaiting approval</strong>
+          <p>From {{ pendingFrom() }} to {{ pendingTo() }}. Waiting for CEO review.</p>
+        </div>
+      </div>
+    }
+  

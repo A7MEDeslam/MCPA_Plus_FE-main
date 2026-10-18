@@ -1,0 +1,494 @@
+<div class="returned-semi-finished-page">
+  <div class="page-header">
+    <i class="pi pi-refresh"></i>
+    <div>
+      <h1>Returns Operations</h1>
+      <p>Execute finished goods and semi-finished return actions from one workspace</p>
+    </div>
+  </div>
+
+  <section class="page-guide" aria-label="How to use Returns Operations">
+    <div class="page-guide__intro">
+      <span class="page-guide__icon"><i class="pi pi-info-circle"></i></span>
+      <div>
+        <h2>إزاي تستخدم الصفحة؟</h2>
+        <p>الصفحة دي بتجمع تسجيل الإرجاع، تحديد مصير الوحدة، ومتابعة الموافقات في مكان واحد.</p>
+      </div>
+    </div>
+    <div class="page-guide__steps">
+      <div class="page-guide__step"><b>1</b><span><strong>سجّل الإرجاع</strong><small>اختار العميل، السيريال، واكتب سبب الإرجاع.</small></span></div>
+      <div class="page-guide__step"><b>2</b><span><strong>راجع في Work Center</strong><small>هنا فقط تختار Good أو Maintenance أو Scrap.</small></span></div>
+      <div class="page-guide__step"><b>3</b><span><strong>تابع النتيجة</strong><small>راجع المخزون والموافقة بعد تنفيذ القرار.</small></span></div>
+    </div>
+  </section>
+
+  <div class="stats-row">
+    <div class="stat-card blue">
+      <div class="stat-label">TOTAL RETURNED LOG</div>
+      <div class="stat-value">{{ totalRegistered }}</div>
+      <div class="stat-sub">كل حالات الإرجاع المسجلة</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="stat-label">PENDING CEO APPROVALS</div>
+      <div class="stat-value">{{ pendingApprovalsCount }}</div>
+      <div class="stat-sub">Scrap منتظر موافقة CEO</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">RESOLVED RETURNS</div>
+      <div class="stat-value">{{ resolvedCount }}</div>
+      <div class="stat-sub">وحدات خلصت واتقفلت</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">CEO APPROVED SCRAPS</div>
+      <div class="stat-value">{{ scrapApprovedCount }}</div>
+      <div class="stat-sub">حالات اتوافق عليها كسكراب</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab" [class.active]="activeTab() === 'registry'" (click)="setTab('registry')">
+      <i class="pi pi-list"></i> Returns Registry
+    </button>
+    <button class="tab" [class.active]="activeTab() === 'log'" (click)="setTab('log')">
+      <i class="pi pi-plus-circle"></i> Log Semi-Finished Return
+    </button>
+    <button class="tab" [class.active]="activeTab() === 'workCenter'" (click)="setTab('workCenter')">
+      <i class="pi pi-cog"></i> Work Center
+    </button>
+    <button class="tab" [class.active]="activeTab() === 'finishedActions'" (click)="setTab('finishedActions')">
+      <i class="pi pi-box"></i> Finished Goods Actions
+    </button>
+    <button class="tab" [class.active]="activeTab() === 'pending'" (click)="setTab('pending')"
+      *ngIf="canViewApprovalsTab()">
+      <i class="pi pi-shield"></i> Pending Approvals
+    </button>
+    <button class="tab" [class.active]="activeTab() === 'scrapRegistry'" (click)="setTab('scrapRegistry')">
+      <i class="pi pi-trash"></i> Scrap Registry
+    </button>
+  </div>
+
+  <div class="tab-explainer" [ngSwitch]="activeTab()">
+    <ng-container *ngSwitchCase="'registry'">
+      <i class="pi pi-list"></i><span><strong>Returns Registry:</strong> هنا تراجع كل الإرجاعات المسجلة، حالتها، والإجراء المخطط لها. افتح السهم للتفاصيل.</span>
+    </ng-container>
+    <ng-container *ngSwitchCase="'log'">
+      <i class="pi pi-plus-circle"></i><span><strong>Log Semi-Finished Return:</strong> استخدمه لتسجيل الوحدة وسبب الإرجاع فقط؛ قرار Good أو Maintenance أو Scrap يتم لاحقًا في Work Center.</span>
+    </ng-container>
+    <ng-container *ngSwitchCase="'workCenter'">
+      <i class="pi pi-cog"></i><span><strong>Work Center:</strong> هنا يتم فحص الوحدة الراجعة وتحديد هل ستعود للمخزون، تدخل صيانة، أو تذهب إلى Scrap.</span>
+    </ng-container>
+    <ng-container *ngSwitchCase="'finishedActions'">
+      <i class="pi pi-box"></i><span><strong>Finished Goods Actions:</strong> هنا تنفذ إجراءات إرجاع الـFinished Goods، مثل التحقق من السيريال أو إرجاعه للمخزن.</span>
+    </ng-container>
+    <ng-container *ngSwitchCase="'pending'">
+      <i class="pi pi-shield"></i><span><strong>Pending Approvals:</strong> هنا تظهر حالات الـScrap التي تحتاج مراجعة وموافقة الـCEO قبل تغيير المخزون.</span>
+    </ng-container>
+    <ng-container *ngSwitchCase="'scrapRegistry'">
+      <i class="pi pi-trash"></i><span><strong>Scrap Registry:</strong> سجل موحد لكل الوحدات التي دخلت مسار Scrap، من لحظة الطلب حتى الاعتماد والتنفيذ.</span>
+    </ng-container>
+  </div>
+
+  <div class="panel operations-embed-panel" *ngIf="activeTab() === 'finishedActions'">
+    <app-return-warehouse [embedded]="true"></app-return-warehouse>
+  </div>
+
+  <!-- WORK CENTER TAB -->
+  <div class="work-center-layout" *ngIf="activeTab() === 'workCenter'">
+    <div class="panel work-center-queue-panel">
+      <div class="panel-header">
+        <div>
+          <h2>Work Center Queue</h2>
+          <p class="panel-subtitle">Review the returned unit, decide the handling path, then return it to stock.</p>
+        </div>
+        <span class="queue-hint"><i class="pi pi-info-circle"></i> Assign before processing</span>
+      </div>
+
+      <div class="work-center-queue">
+        <button class="work-center-row" *ngFor="let item of workCenterQueue"
+          [class.selected]="selectedWorkCenterItem?.id === item.id" (click)="openWorkCenterItem(item)">
+          <span class="queue-item-main">
+            <strong>{{ item.product }}</strong>
+            <small>{{ item.code }} · {{ item.serial }}</small>
+          </span>
+          <span class="queue-item-type" [class.finished]="item.type === 'Finished Goods'">{{ item.type }}</span>
+          <span class="badge" [ngClass]="item.condition === 'Good' ? 'badge-good' : 'badge-bad'">{{ item.condition }}</span>
+          <span class="queue-status" [class.warning]="item.status !== 'Ready for review'">{{ item.status }}</span>
+          <i class="pi pi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel work-center-detail" *ngIf="selectedWorkCenterItem; else workCenterEmpty">
+      <div class="panel-header">
+        <div>
+          <h2>Process Return</h2>
+          <p class="panel-subtitle">{{ selectedWorkCenterItem?.product }} · {{ selectedWorkCenterItem?.serial }}</p>
+        </div>
+        <button class="btn-icon" type="button" (click)="closeWorkCenterItem()" title="Close"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="return-summary-strip">
+        <div><span>Type</span><strong>{{ selectedWorkCenterItem?.type }}</strong></div>
+        <div><span>Reason</span><strong>{{ selectedWorkCenterItem?.reason }}</strong></div>
+        <div><span>Current status</span><strong>{{ selectedWorkCenterItem?.status }}</strong></div>
+      </div>
+
+      <div class="work-center-form-grid">
+        <label>
+          Condition
+          <select [(ngModel)]="workCenterCondition" (ngModelChange)="onWorkCenterConditionChange()">
+            <option value="Good">Good / سليمة</option>
+            <option value="Damaged">Damaged / بايظة</option>
+          </select>
+        </label>
+        <label>
+          Assign to
+          <select [(ngModel)]="workCenterAssignee">
+            <option value="">Select technician or team...</option>
+            <option *ngFor="let assignee of workCenterAssignees" [value]="assignee">{{ assignee }}</option>
+          </select>
+          <span class="field-hint">The assignee owns the inspection and processing step.</span>
+        </label>
+        <label>
+          Handling path
+          <select [(ngModel)]="workCenterAction">
+            <option *ngIf="workCenterCondition === 'Good'" value="Return to stock">Return to stock</option>
+            <option *ngIf="workCenterCondition === 'Damaged'" value="Maintenance">Maintenance</option>
+            <option *ngIf="workCenterCondition === 'Damaged'" value="Scrap">Scrap</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="work-center-section" *ngIf="workCenterCondition === 'Damaged' && workCenterAction === 'Maintenance'">
+        <div class="section-title-bar">
+          <h3><i class="pi pi-sitemap"></i> BOM materials for maintenance</h3>
+          <span class="field-hint">These are the items the technician will use to repair the unit.</span>
+        </div>
+        <div class="work-center-material" *ngFor="let material of workCenterMaterials">
+          <span><strong>{{ material.code }}</strong> · {{ material.name }}</span>
+          <input type="number" min="1" [(ngModel)]="material.quantity" aria-label="Material quantity" />
+          <span>{{ material.unit }}</span>
+        </div>
+        <div class="empty-row" *ngIf="workCenterMaterials.length === 0">No BOM materials loaded for this item.</div>
+        <div class="material-request-note"><i class="pi pi-info-circle"></i> Materials are requested/reserved first and deducted when issued by the warehouse.</div>
+      </div>
+
+      <div class="work-center-section" *ngIf="workCenterCondition === 'Good' || (workCenterCondition === 'Damaged' && workCenterAction === 'Maintenance')">
+        <div class="section-title-bar"><h3>Return destination</h3></div>
+        <div class="work-center-form-grid">
+          <label>Destination
+            <select [(ngModel)]="workCenterDestination">
+              <option value="MTS">MTS · Make To Stock</option>
+              <option value="MTO">MTO · Make To Order</option>
+            </select>
+          </label>
+          <label>Serial policy
+            <select [(ngModel)]="workCenterSerialPolicy">
+              <option value="New Serial">Issue new serial</option>
+              <option value="Keep Existing Serial">Keep existing serial</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="work-center-scrap-note" *ngIf="workCenterCondition === 'Damaged' && workCenterAction === 'Scrap'">
+        <i class="pi pi-shield"></i> Scrap will move to Pending Approvals. Inventory is not changed until approval.
+      </div>
+
+      <div class="form-success" *ngIf="workCenterMessage">{{ workCenterMessage }}</div>
+      <div class="form-actions work-center-actions">
+        <button class="btn-secondary" type="button" (click)="closeWorkCenterItem()">Cancel</button>
+        <button class="btn-primary" type="button" (click)="completeWorkCenterStep()">
+          <i class="pi pi-check-circle"></i> Continue processing
+        </button>
+      </div>
+    </div>
+
+    <ng-template #workCenterEmpty>
+      <div class="panel work-center-empty">
+        <i class="pi pi-arrow-left"></i>
+        <h2>Select a return to process</h2>
+        <p>Choose a unit from the queue to select Good, Maintenance, or Scrap.</p>
+      </div>
+    </ng-template>
+  </div>
+
+  <!-- SCRAP REGISTRY TAB -->
+  <div class="panel" *ngIf="activeTab() === 'scrapRegistry'">
+    <div class="panel-header">
+      <div>
+        <h2>Scrap Registry</h2>
+        <p class="panel-subtitle">كل الحالات التي اختارت Scrap، مع حالة الموافقة والقرار النهائي.</p>
+      </div>
+      <span class="queue-hint"><i class="pi pi-info-circle"></i> لا يتم خصم المخزون قبل الاعتماد</span>
+    </div>
+    <table class="data-table scrap-registry-table">
+      <thead><tr><th>Serial</th><th>Product</th><th>Customer</th><th>Reason</th><th>Requested By</th><th>Status</th><th>Date</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let scrap of scrapRegistry">
+          <td><strong>{{ scrap.serial }}</strong></td>
+          <td>{{ scrap.product }}</td>
+          <td>{{ scrap.customer }}</td>
+          <td>{{ scrap.reason }}</td>
+          <td>{{ scrap.requestedBy }}</td>
+          <td><span class="badge" [ngClass]="scrap.status === 'Approved' || scrap.status === 'Processed' ? 'badge-good' : scrap.status === 'Rejected' ? 'badge-bad' : 'badge-neutral'">{{ scrap.status }}</span></td>
+          <td>{{ scrap.date }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="error-banner" *ngIf="error">{{ error }}</div>
+
+  <!-- REGISTRY TAB -->
+  <div class="panel" *ngIf="activeTab() === 'registry'">
+    <div class="panel-header">
+      <div>
+        <h2>Returned Semi-Finished Log</h2>
+        <p class="panel-subtitle">كل صف يمثل وحدة اتسجل إرجاعها. افتح السهم للتفاصيل أو استخدم القلم لتعديل السبب.</p>
+      </div>
+      <input class="search-input" type="text" placeholder="Search returns registry..." [(ngModel)]="searchTerm" />
+    </div>
+
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Semi-Finished</th>
+        <th title="حالة الوحدة وقت الإرجاع">Condition</th>
+        <th title="الإجراء المطلوب بعد الفحص">Planned Action</th>
+        <th title="هل تحتاج موافقة CEO؟">Approval</th>
+        <th title="الشخص الذي وافق على الحالة">Approved By</th>
+        <th title="هل الحالة ما زالت مفتوحة أم انتهت؟">Status</th>
+        <th title="تاريخ تسجيل الإرجاع">Registered Date</th>
+        <th title="فتح التفاصيل أو تعديل السبب">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let item of filteredItems">
+        <td>
+          <button class="expand-btn" (click)="item.expanded = !item.expanded">
+            <i class="pi" [ngClass]="item.expanded ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+          </button>
+        </td>
+        <td>
+          <div class="cell-title">{{ item.semiFinishedName }}</div>
+          <div class="cell-sub">{{ item.semiFinishedCode }}</div>
+        </td>
+        <td>
+          <span class="badge" [ngClass]="item.isGood ? 'badge-good' : 'badge-bad'">
+            {{ item.isGood ? 'Good' : 'Damaged (Bad)' }}
+          </span>
+        </td>
+        <td>
+          <div class="cell-title">{{ item.action }}</div>
+          <div class="cell-sub">Reason: "{{ item.reason || 'No reason provided' }}"</div>
+        </td>
+        <td><span class="badge badge-neutral">{{ item.approvalStatus }}</span></td>
+        <td>{{ item.approvedByName || '-' }}</td>
+        <td><span class="badge" [ngClass]="item.isResolved ? 'badge-good' : 'badge-neutral'">
+            {{ item.isResolved ? 'Resolved' : 'Open' }}
+          </span></td>
+        <td>{{ item.createdAt | date: 'MMM d, y' }}</td>
+        <td>
+          <button class="btn-icon" title="Edit reason" (click)="openEditReasonModal(item)">
+            <i class="pi pi-pencil"></i>
+          </button>
+        </td>
+      </tr>
+      <tr *ngIf="filteredItems.length === 0">
+        <td colspan="9" class="empty-row">No returned semi-finished items found.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <!-- LOG RETURN TAB -->
+  <div class="panel" *ngIf="activeTab() === 'log'">
+    <h2>Log a Semi-Finished Return</h2>
+
+    <div class="form-grid">
+    <label>
+      Semi-Finished Item
+      <input
+        type="text"
+        list="semiFinishedOptions"
+        placeholder="Search or select a semi-finished product"
+        [(ngModel)]="semiFinishedSearch"
+        (ngModelChange)="onSemiFinishedSearchChange($event)"
+        autocomplete="off"
+      />
+      <datalist id="semiFinishedOptions">
+        <option *ngFor="let s of semiFinishedItems" [value]="s.code + ' - ' + s.name + ' (' + s.modelType + ')'">
+        </option>
+      </datalist>
+      <span class="field-hint" *ngIf="loadingSemiFinished">Loading semi-finished products...</span>
+      <span class="field-hint" *ngIf="!loadingSemiFinished">Type a code/name or choose a suggestion.</span>
+    </label>
+
+      <label>
+        Condition
+        <select [(ngModel)]="form.isGood" (ngModelChange)="onConditionChange()">
+          <option [ngValue]="true">Good</option>
+          <option [ngValue]="false">Damaged (Bad)</option>
+        </select>
+        <span class="field-hint">Choose the item condition first.</span>
+      </label>
+
+      <label>
+        Planned Action
+        <select *ngIf="form.isGood" [ngModel]="form.action" disabled>
+          <option [ngValue]="ReturnedSemiFinishedActionEnum.MoveToGood">Move To Good</option>
+        </select>
+        <select *ngIf="!form.isGood" [(ngModel)]="form.action" (ngModelChange)="onActionChange()">
+          <option [ngValue]="0" disabled>-- Choose what happens next --</option>
+          <option *ngFor="let opt of availableActionOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+        </select>
+        <span class="field-hint" *ngIf="form.isGood">Automatically selected because the item is good.</span>
+        <span class="field-hint" *ngIf="!form.isGood">Choose the handling path for the damaged unit.</span>
+      </label>
+
+      <label class="full-width">
+        Reason
+        <textarea [(ngModel)]="form.reason" rows="2" required placeholder="Why was this item returned?"></textarea>
+      </label>
+    </div>
+
+    <div class="materials-section" *ngIf="showRecoveredMaterials">
+      <div class="materials-header">
+        <h3>Recovered Raw Materials</h3>
+        <button class="btn-secondary" (click)="addRecoveredMaterialRow()">
+          <i class="pi pi-plus"></i> Add Material
+        </button>
+      </div>
+      <div class="material-row" *ngFor="let line of form.recoveredRawMaterials; let i = index">
+        <input class="material-picker" list="rawMaterialOptions" placeholder="Search material by name or code"
+          [ngModel]="getRawMaterialLabel(line)" (ngModelChange)="onRawMaterialInput(line, $event)" />
+        <input class="quantity-input" type="number" min="1" placeholder="Quantity" [(ngModel)]="line.quantity" />
+        <span class="material-unit">{{ getRawMaterialUnit(line.rawMaterialId) }}</span>
+        <span class="material-stock" *ngIf="getRawMaterialStock(line.rawMaterialId) !== null">
+          Available: {{ getRawMaterialStock(line.rawMaterialId) }}
+        </span>
+        <button class="btn-icon" (click)="removeRecoveredMaterialRow(i)"><i class="pi pi-trash"></i></button>
+      </div>
+      <datalist id="rawMaterialOptions">
+        <option *ngFor="let raw of masterData.RAW_ITEMS()" [value]="raw.code + ' - ' + raw.name"></option>
+      </datalist>
+    </div>
+
+    <div class="materials-section" *ngIf="showMaintenanceMaterials">
+      <div class="materials-header">
+        <h3>Maintenance Raw Materials</h3>
+        <button class="btn-secondary" (click)="addMaintenanceMaterialRow()">
+          <i class="pi pi-plus"></i> Add Material
+        </button>
+      </div>
+      <div class="material-row" *ngFor="let line of form.maintenanceRawMaterials; let i = index">
+        <input class="material-picker" list="rawMaterialOptions" placeholder="Search material by name or code"
+          [ngModel]="getRawMaterialLabel(line)" (ngModelChange)="onRawMaterialInput(line, $event)" />
+        <input class="quantity-input" type="number" min="1" placeholder="Quantity" [(ngModel)]="line.quantity" />
+        <span class="material-unit">{{ getRawMaterialUnit(line.rawMaterialId) }}</span>
+        <span class="material-stock" *ngIf="getRawMaterialStock(line.rawMaterialId) !== null">
+          Available: {{ getRawMaterialStock(line.rawMaterialId) }}
+        </span>
+        <button class="btn-icon" (click)="removeMaintenanceMaterialRow(i)"><i class="pi pi-trash"></i></button>
+      </div>
+      <datalist id="rawMaterialOptions">
+        <option *ngFor="let raw of masterData.RAW_ITEMS()" [value]="raw.code + ' - ' + raw.name"></option>
+      </datalist>
+      <div class="material-request-note">
+        <i class="pi pi-info-circle"></i>
+        A maintenance material request will be created. Stock is reserved first and deducted when the warehouse issues the material.
+      </div>
+    </div>
+
+    <p class="field-hint" *ngIf="!showRecoveredMaterials && !showMaintenanceMaterials">
+      No raw materials are required for this action.
+    </p>
+
+    <div class="inline-work-center-step" *ngIf="!form.isGood">
+      <div class="inline-work-center-step__eyebrow">STEP 2 · WORK CENTER</div>
+      <h3>Choose what happens to this damaged unit</h3>
+      <p *ngIf="form.action === ReturnedSemiFinishedActionEnum.Maintain">
+        Maintenance materials are requested from stock first; the unit returns after the repair is completed.
+      </p>
+      <p *ngIf="form.action === ReturnedSemiFinishedActionEnum.Recycle">
+        Selected recovered materials are sent back to the raw-material stock after processing.
+      </p>
+      <p *ngIf="isScrapAction">
+        Scrap goes to CEO approval and does not affect stock before approval.
+      </p>
+      <div class="inline-work-center-step__summary">
+        <span>Handling: <b>{{ form.action === ReturnedSemiFinishedActionEnum.Maintain ? 'Maintenance' : form.action === ReturnedSemiFinishedActionEnum.Recycle ? 'Recycle' : 'Scrap' }}</b></span>
+        <span>Serial: <b>New serial after processing</b></span>
+      </div>
+      <button type="button" class="btn-secondary" *ngIf="!workCenterStepConfirmed"
+        (click)="confirmWorkCenterStep()">Confirm Work Center step</button>
+      <span class="inline-work-center-step__confirmed" *ngIf="workCenterStepConfirmed">
+        <i class="pi pi-check-circle"></i> Work Center decision confirmed
+      </span>
+    </div>
+
+    <div class="form-error" *ngIf="submitError">{{ submitError }}</div>
+    <div class="form-success" *ngIf="submitSuccess">Return logged successfully.</div>
+
+    <button class="btn-primary" [disabled]="submitting || (!form.isGood && !workCenterStepConfirmed)" (click)="submitReturn()">
+      {{ submitting ? 'Submitting...' : 'Log Return' }}
+    </button>
+  </div>
+
+  <!-- PENDING APPROVALS TAB -->
+  <div class="panel" *ngIf="canViewApprovalsTab() && activeTab() === 'pending'">
+    <h2>Pending CEO Approvals</h2>
+
+    <div class="approval-card" *ngFor="let item of pendingItems">
+      <div class="approval-info">
+        <div class="cell-title">{{ item.semiFinishedName }} ({{ item.semiFinishedCode }})</div>
+        <div class="cell-sub">Action: {{ item.action }} — Reason: "{{ item.reason }}"</div>
+      </div>
+
+      <div class="approval-actions" *ngIf="approvingId !== item.id">
+        <button class="btn-secondary" (click)="startApproval(item)">Review</button>
+      </div>
+
+      <div class="approval-form" *ngIf="approvingId === item.id">
+        <textarea rows="2" placeholder="Notes (optional)" [(ngModel)]="approvalNotes"></textarea>
+        <div class="approval-buttons">
+          <button class="btn-primary" (click)="confirmApproval(true)">Approve Scrap</button>
+          <button class="btn-danger" (click)="confirmApproval(false)">Reject</button>
+          <button class="btn-secondary" (click)="cancelApproval()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="empty-row" *ngIf="pendingItems.length === 0">No pending approvals.</div>
+  </div>
+</div>
+<!-- EDIT REASON MODAL -->
+<div class="modal-overlay" *ngIf="editingReasonItem" (click)="closeEditReasonModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title"><i class="pi pi-pencil"></i> Edit Return Reason</span>
+      <button class="modal-close" (click)="closeEditReasonModal()"><i class="pi pi-times"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <p style="margin-bottom: 12px">
+        <strong>Item:</strong> {{ editingReasonItem?.semiFinishedName }} ({{ editingReasonItem?.semiFinishedCode }})
+      </p>
+
+      <label class="full-width">
+        Reason
+        <textarea [(ngModel)]="editReasonText" rows="3" placeholder="Enter the reason for this return..."></textarea>
+      </label>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeEditReasonModal()">Cancel</button>
+      <button class="btn-primary" [disabled]="!editReasonText.trim() || isSavingReason" (click)="submitReasonEdit()">
+        {{ isSavingReason ? 'Saving...' : 'Save Reason' }}
+      </button>
+    </div>
+  </div>
+</div>

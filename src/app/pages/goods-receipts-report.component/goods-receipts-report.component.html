@@ -1,0 +1,198 @@
+<div class="report-page" dir="ltr">
+  <div class="report-header">
+    <h1><i class="pi pi-inbox"></i> Goods Receipt Report</h1>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <div class="filter-field">
+      <label>From date</label>
+      <input type="date" [(ngModel)]="from" class="filter-input" />
+    </div>
+
+    <div class="filter-field">
+      <label>To date</label>
+      <input type="date" [(ngModel)]="to" class="filter-input" />
+    </div>
+
+    <div class="filter-actions">
+      <button type="button" class="btn btn-primary" (click)="fetchReport()">
+        <i class="pi pi-search"></i> Search
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="clearFilters()">
+        <i class="pi pi-times"></i> Clear
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="summary-cards" *ngIf="!loading() && !error()">
+    <div class="summary-card">
+      <span class="summary-label">Receipts count</span>
+      <span class="summary-value">{{ totalReceipts() }}</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Total received quantity</span>
+      <span class="summary-value">{{ totalQty() }}</span>
+    </div>
+    <div class="summary-card success">
+      <span class="summary-label">Posted to journal entry</span>
+      <span class="summary-value">{{ postedCount() }}</span>
+    </div>
+    <div class="summary-card warning">
+      <span class="summary-label">Not posted</span>
+      <span class="summary-value">{{ unpostedCount() }}</span>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="state-box" *ngIf="loading()">
+    <i class="pi pi-spin pi-spinner"></i>
+    <span>Loading report...</span>
+  </div>
+
+  <!-- Error -->
+  <div class="state-box error" *ngIf="error() && !loading()">
+    <i class="pi pi-exclamation-triangle"></i>
+    <span>{{ error() }}</span>
+  </div>
+
+  <!-- Empty -->
+  <div class="state-box" *ngIf="!loading() && !error() && rows().length === 0">
+    <i class="pi pi-inbox"></i>
+    <span>No goods receipts match this period</span>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrapper" *ngIf="!loading() && !error() && rows().length > 0">
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Receipt #</th>
+          <th>Receipt date</th>
+          <th>Purchase order #</th>
+          <th>Warehouse</th>
+          <th>Received by</th>
+          <th>Status</th>
+          <th>Items count</th>
+          <th>Total quantity</th>
+          <th>Journal entry</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of rows()">
+          <td>{{ row.grNumber }}</td>
+          <td>{{ row.receiptDate | date: 'yyyy-MM-dd' }}</td>
+          <td>{{ row.purchaseOrderId }}</td>
+          <td>{{ row.warehouseName }}</td>
+          <td>{{ row.receivedBy }}</td>
+          <td>
+            <span class="status-badge" [ngClass]="row.status.toLowerCase()">{{ row.status }}</span>
+          </td>
+          <td>{{ row.itemsCount }}</td>
+          <td>{{ row.totalReceivedQty }}</td>
+          <td>
+            <button type="button" class="je-badge" [class.posted]="row.hasJournalEntry"
+              [class.not-posted]="!row.hasJournalEntry" [disabled]="!row.hasJournalEntry"
+              (click)="openJournalEntry(row)">
+              <i class="pi" [ngClass]="row.hasJournalEntry ? 'pi-check-circle' : 'pi-minus-circle'"></i>
+              {{ row.hasJournalEntry ? (row.journalEntry?.entryNumber) : 'None' }}
+            </button>
+          </td>
+          <td>
+            <button type="button" class="btn btn-secondary" (click)="openDetails(row)">
+              <i class="pi pi-eye"></i> Details
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Journal Entry detail modal -->
+  <div class="je-modal-backdrop" *ngIf="selectedRow()" (click)="closeJournalEntry()">
+    <div class="je-modal" (click)="$event.stopPropagation()">
+      <div class="je-modal-header">
+        <h3><i class="pi pi-book"></i> Journal Entry Details</h3>
+        <button type="button" class="close-btn" (click)="closeJournalEntry()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="je-modal-body" *ngIf="selectedRow()?.journalEntry as je">
+        <div class="je-row"><span>Entry number</span><strong>{{ je.entryNumber }}</strong></div>
+        <div class="je-row"><span>Document date</span><strong>{{ je.documentDate | date: 'yyyy-MM-dd HH:mm' }}</strong>
+        </div>
+        <div class="je-row"><span>Posting date</span><strong>{{ je.postingDate | date: 'yyyy-MM-dd HH:mm' }}</strong>
+        </div>
+        <div class="je-row"><span>Status</span><strong>{{ je.status }}</strong></div>
+        <div class="je-row"><span>Total debit</span><strong>{{ je.totalDebit }}</strong></div>
+        <div class="je-row"><span>Total credit</span><strong>{{ je.totalCredit }}</strong></div>
+        <div class="je-row" *ngIf="je.reference"><span>Reference</span><strong>{{ je.reference }}</strong></div>
+        <div class="je-row" *ngIf="je.note"><span>Note</span><strong>{{ je.note }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receipt details modal -->
+  <div class="je-modal-backdrop" *ngIf="detailRow() || detailLoading() || detailError()" (click)="closeDetails()">
+    <div class="je-modal details-modal" (click)="$event.stopPropagation()">
+      <div class="je-modal-header">
+        <h3><i class="pi pi-inbox"></i> Receipt Details {{ detailRow() ? '— ' + detailRow()?.grNumber : '' }}</h3>
+        <button type="button" class="close-btn" (click)="closeDetails()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="je-modal-body">
+        <div class="state-box" *ngIf="detailLoading()">
+          <i class="pi pi-spin pi-spinner"></i>
+          <span>Loading details...</span>
+        </div>
+
+        <div class="state-box error" *ngIf="detailError() && !detailLoading()">
+          <i class="pi pi-exclamation-triangle"></i>
+          <span>{{ detailError() }}</span>
+        </div>
+
+        <ng-container *ngIf="detailRow() as gr">
+          <div class="je-row"><span>PO number</span><strong>{{ gr.poNumber }}</strong></div>
+          <div class="je-row"><span>Supplier</span><strong>{{ gr.supplierName }}</strong></div>
+          <div class="je-row"><span>Warehouse</span><strong>{{ gr.warehouseName }}</strong></div>
+          <div class="je-row"><span>Received by</span><strong>{{ gr.receivedBy }}</strong></div>
+          <div class="je-row"><span>Receipt date</span><strong>{{ gr.receiptDate | date: 'yyyy-MM-dd' }}</strong></div>
+          <div class="je-row"><span>Status</span><strong>{{ gr.status }}</strong></div>
+
+          <table class="report-table details-items-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Material</th>
+                <th>Unit</th>
+                <th>Ordered</th>
+                <th>Received</th>
+                <th>Remaining</th>
+                <th>Unit price</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of gr.items">
+                <td>{{ item.rawMaterialCode }}</td>
+                <td>{{ item.rawMaterialName }}</td>
+                <td>{{ item.unit }}</td>
+                <td>{{ item.orderedQty }}</td>
+                <td>{{ item.receivedQty }}</td>
+                <td>{{ item.remainingQtyAfterThisReceipt }}</td>
+                <td>{{ item.unitPrice }}</td>
+                <td>{{ item.receivedAmount }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+
+</div>

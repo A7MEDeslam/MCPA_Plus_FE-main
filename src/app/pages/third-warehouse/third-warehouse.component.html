@@ -1,0 +1,111 @@
+<div class="page active" id="page-thirdwh">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-warehouse" style="margin-right: 8px;"></i>Third Warehouse</h1>
+      <p>Raw materials assigned to the Third Warehouse</p>
+    </div>
+    <button *ngIf="canAssign" class="btn btn-primary" (click)="openAssign()">+ Assign Material</button>
+  </div>
+
+  <div class="stat-grid" id="thirdwh-stats">
+    <div class="stat-card"><div class="stat-label">Warehouse</div><div class="stat-value">{{thirdWarehouseName()}}</div><div class="stat-sub">Selected warehouse</div></div>
+    <div class="stat-card amber"><div class="stat-label">Assigned SKUs</div><div class="stat-value">{{thirdWarehouseRows().length}}</div><div class="stat-sub">Unique raw materials</div></div>
+    <div class="stat-card red"><div class="stat-label">Total Quantity</div><div class="stat-value">{{totalQuantity() | number}}</div><div class="stat-sub">Assigned units</div></div>
+    <div class="stat-card navy"><div class="stat-label">Projects Used</div><div class="stat-value">{{projectService.Projects().length}}</div><div class="stat-sub">Available projects</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Assigned Raw Materials</span>
+      <div class="search-input-wrapper">
+        <i class="pi pi-search search-icon"></i>
+        <input class="form-control search-input" placeholder="Search assignments..." [ngModel]="stockSearch()" (ngModelChange)="stockSearch.set($event); pagination.currentPage.set(1)" />
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Quantity</th>
+            <th>From Warehouse</th>
+            <th>Project</th>
+            <th>Assigned At</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (pagedRows().length) {
+            @for (row of pagedRows(); track row.id) {
+              <tr>
+                <td><b>{{row.code}}</b></td>
+                <td>{{row.name}}</td>
+                <td>{{row.quantity}}</td>
+                <td>{{row.fromWarehouse || '—'}}</td>
+                <td>{{row.projectName || '—'}}</td>
+                <td>{{row.assignedAt | date:'short'}}</td>
+              </tr>
+            }
+          } @else {
+            <tr><td colspan="6" class="empty">No raw materials assigned to the Third Warehouse yet.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <app-pagination
+      [totalItems]="thirdWarehouseRows().length"
+      [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()"
+      (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+</div>
+
+@if (assignOpen) {
+<div class="modal-overlay open" (click)="assignOpen = false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header"><span class="modal-title">Assign Material to {{thirdWarehouseName()}}</span><button class="modal-close" (click)="assignOpen = false">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Raw Material</label>
+          <app-searchable-select
+            [(ngModel)]="assignForm.rawMaterialId"
+            [options]="rawMaterialOptions()"
+            placeholder="Select raw material"
+            searchPlaceholder="Search materials...">
+          </app-searchable-select>
+        </div>
+        <div class="form-group"><label>Project</label>
+          <app-searchable-select
+            [(ngModel)]="assignForm.projectId"
+            [options]="projectOptions()"
+            placeholder="Select project"
+            searchPlaceholder="Search projects...">
+          </app-searchable-select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>From Warehouse</label>
+          <app-searchable-select
+            [(ngModel)]="assignForm.fromWarehouseId"
+            [options]="warehouseOptions()"
+            placeholder="Select warehouse"
+            searchPlaceholder="Search warehouses...">
+          </app-searchable-select>
+        </div>
+        <div class="form-group"><label>Quantity</label><input class="form-control" type="number" min="1" [(ngModel)]="assignForm.quantity"/></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group" style="width:100%"><label>Notes</label><input class="form-control" [(ngModel)]="assignForm.notes"/></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="assignOpen = false">Cancel</button>
+      <button class="btn btn-primary" [disabled]="isAssigning" (click)="submitAssign()">
+        {{ isAssigning ? 'Assigning...' : 'Assign' }}
+      </button>
+    </div>
+  </div>
+</div>
+}

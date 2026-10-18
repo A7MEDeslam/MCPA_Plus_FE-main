@@ -1,0 +1,222 @@
+<section class="page active general-inventory-page">
+  <header class="page-header">
+    <h1><i class="pi pi-box"></i> General Inventory</h1>
+    <p>Track general inventory items, stock levels, receipts, and issues.</p>
+  </header>
+
+  <div class="notice error" *ngIf="errorMessage()" role="alert">{{ errorMessage() }}</div>
+  <div class="notice success" *ngIf="successMessage()" role="status">{{ successMessage() }}</div>
+
+  <div class="stat-grid">
+    <article class="stat-card">
+      <div class="stat-label">Total Items</div>
+      <div class="stat-value">{{ items().length }}</div>
+      <div class="stat-sub">Registered inventory items</div>
+    </article>
+    <article class="stat-card navy">
+      <div class="stat-label">Total Units</div>
+      <div class="stat-value">{{ totalUnits() | number }}</div>
+      <div class="stat-sub">Current stock balance</div>
+    </article>
+    <article class="stat-card amber">
+      <div class="stat-label">Low Stock</div>
+      <div class="stat-value">{{ lowStockCount() }}</div>
+      <div class="stat-sub">Below minimum stock level</div>
+    </article>
+  </div>
+
+  <div class="card">
+    <div class="tabs inventory-tabs" role="tablist" aria-label="Inventory views">
+      <button type="button" class="tab" role="tab" [class.active]="activeTab() === 'all'"
+        [attr.aria-selected]="activeTab() === 'all'" (click)="activeTab.set('all')">
+        <i class="pi pi-list"></i> Inventory Balances
+      </button>
+      <button type="button" class="tab" role="tab" [class.active]="activeTab() === 'low'"
+        [attr.aria-selected]="activeTab() === 'low'" (click)="activeTab.set('low')">
+        <i class="pi pi-exclamation-triangle"></i> Low Stock <span class="tab-count">{{ lowStockCount() }}</span>
+      </button>
+    </div>
+    <div class="card-header inventory-toolbar">
+      <span class="card-title">{{ activeTab() === 'low' ? 'Low Stock Items' : 'Inventory Balances' }}</span>
+      <div class="toolbar-actions">
+        <label class="search-input-wrapper">
+          <i class="pi pi-search search-icon"></i>
+          <input class="form-control search-input" placeholder="Search by name or code..." [ngModel]="search()"
+            (ngModelChange)="search.set($event)" />
+        </label>
+        <button type="button" class="btn btn-ghost" (click)="openNameManager()"><i class="pi pi-tags"></i> Add Item
+          Name</button>
+        <button type="button" class="btn btn-primary" (click)="openCreate()"><i class="pi pi-plus"></i> New
+          Item</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Item</th>
+            <th>Category</th>
+            <th>Unit</th>
+            <th>Current Stock</th>
+            <th>Minimum Level</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of filteredItems()">
+            <td><strong>{{ item.code }}</strong></td>
+            <td>{{ item.name }}<small class="description" *ngIf="item.description">{{ item.description }}</small></td>
+            <td>{{ item.categoryName || item.category }}</td>
+            <td>{{ item.unit }}</td>
+            <td><strong>{{ item.currentStock | number }}</strong></td>
+            <td>{{ item.minStockLevel | number }}</td>
+            <td><span class="stock-status" [class.low]="item.isLowStock">{{ item.isLowStock ? 'Low Stock' : 'In Stock'
+                }}</span></td>
+            <td>
+              <div class="row-actions">
+                <button type="button" class="icon-action receive" title="Receive" aria-label="Receive"
+                  (click)="openMovement(item, 'receive')"><i class="pi pi-arrow-down-left"></i></button>
+                <button type="button" class="icon-action issue" title="Issue" aria-label="Issue"
+                  (click)="openMovement(item, 'issue')"><i class="pi pi-arrow-up-right"></i></button>
+                <button type="button" class="icon-action" title="Movement History" aria-label="Movement History"
+                  (click)="openHistory(item)"><i class="pi pi-history"></i></button>
+                <button type="button" class="icon-action" title="Edit" aria-label="Edit" (click)="openEdit(item)"><i
+                    class="pi pi-pencil"></i></button>
+                <button type="button" class="icon-action danger-action" title="Delete" aria-label="Delete"
+                  (click)="deleteItem(item)"><i class="pi pi-trash"></i></button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="!loading() && filteredItems().length === 0">
+            <td colspan="8" class="empty-row">{{ activeTab() === 'low' ? 'No low stock items.' : 'No matching items
+              found.' }}</td>
+          </tr>
+          <tr *ngIf="loading()">
+            <td colspan="8" class="empty-row"><i class="pi pi-spin pi-spinner"></i> Loading inventory...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal-overlay open" *ngIf="itemModalOpen">
+    <section class="inventory-modal" role="dialog" aria-modal="true" aria-labelledby="item-modal-title">
+      <header class="modal-header">
+        <h2 class="modal-title" id="item-modal-title">{{ editingId === null ? 'Add Inventory Item' : 'Edit Inventory
+          Item' }}</h2><button type="button" class="modal-close" (click)="itemModalOpen = false"
+          aria-label="Close">×</button>
+      </header>
+      <form (ngSubmit)="saveItem()">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group"><label for="general-name">Item Name</label><select id="general-name"
+                class="form-control" name="generalInventoryNameId" [(ngModel)]="itemForm.generalInventoryNameId"
+                required>
+                <option [ngValue]="null" disabled>Select an item name</option>
+                <option *ngFor="let name of names()" [ngValue]="name.id">{{ name.name }}</option>
+              </select></div>
+            <div class="form-group"><label for="general-category">Category</label><select id="general-category"
+                class="form-control" name="category" [(ngModel)]="itemForm.category" required>
+                <option [ngValue]="null" disabled>Select a category</option>
+                <option *ngFor="let category of categories" [ngValue]="category.id">{{ category.name }}</option>
+              </select></div>
+            <div class="form-group"><label for="general-unit">Unit</label><input id="general-unit" class="form-control"
+                name="unit" [(ngModel)]="itemForm.unit" placeholder="PCS" required /></div>
+            <div class="form-group"><label for="general-minimum">Minimum Stock Level</label><input id="general-minimum"
+                class="form-control" type="number" name="minStockLevel" [(ngModel)]="itemForm.minStockLevel" min="0"
+                required /></div>
+            <div class="form-group full-width"><label for="general-description">Description</label><textarea
+                id="general-description" class="form-control" name="description" [(ngModel)]="itemForm.description"
+                rows="3"></textarea></div>
+          </div>
+        </div>
+        <footer class="modal-footer"><button type="button" class="btn btn-ghost"
+            (click)="itemModalOpen = false">Cancel</button><button type="submit" class="btn btn-primary"
+            [disabled]="loading()">Save</button></footer>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-overlay open" *ngIf="movementModalOpen">
+    <section class="inventory-modal compact-modal" role="dialog" aria-modal="true"
+      aria-labelledby="movement-modal-title">
+      <header class="modal-header">
+        <h2 class="modal-title" id="movement-modal-title">{{ movementType === 'receive' ? 'Receive Stock' : 'Issue
+          Stock' }}</h2><button type="button" class="modal-close" (click)="movementModalOpen = false"
+          aria-label="Close">×</button>
+      </header>
+      <form (ngSubmit)="saveMovement()">
+        <div class="modal-body">
+          <p class="modal-context">{{ activeItem?.name }} <span>({{ activeItem?.code }})</span></p>
+          <div class="form-group"><label for="movement-quantity">Quantity</label><input id="movement-quantity"
+              class="form-control" type="number" name="quantity" [(ngModel)]="movementForm.quantity" min="0.01"
+              step="any" required /></div>
+          <div class="form-group"><label for="movement-notes">Notes</label><textarea id="movement-notes"
+              class="form-control" name="notes" [(ngModel)]="movementForm.notes" rows="3"></textarea></div>
+        </div>
+        <footer class="modal-footer"><button type="button" class="btn btn-ghost"
+            (click)="movementModalOpen = false">Cancel</button><button type="submit" class="btn btn-primary"
+            [disabled]="loading()">Confirm</button></footer>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-overlay open" *ngIf="historyModalOpen">
+    <section class="inventory-modal history-modal" role="dialog" aria-modal="true"
+      aria-labelledby="history-modal-title">
+      <header class="modal-header">
+        <h2 class="modal-title" id="history-modal-title">Movement History: {{ activeItem?.name }}</h2><button
+          type="button" class="modal-close" (click)="historyModalOpen = false" aria-label="Close">×</button>
+      </header>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Quantity</th>
+              <th>Previous Stock</th>
+              <th>New Stock</th>
+              <th>Notes</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of history()">
+              <td>{{ row.typeName }}</td>
+              <td>{{ row.quantity | number }}</td>
+              <td>{{ row.previousStock | number }}</td>
+              <td>{{ row.newStock | number }}</td>
+              <td>{{ row.notes || '—' }}</td>
+              <td>{{ row.createdAt | date:'short' }}</td>
+            </tr>
+            <tr *ngIf="history().length === 0">
+              <td colspan="6" class="empty-row">No movements found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <footer class="modal-footer"><button type="button" class="btn btn-ghost"
+          (click)="historyModalOpen = false">Close</button></footer>
+    </section>
+  </div>
+
+  <div class="modal-overlay open" *ngIf="nameModalOpen">
+    <section class="inventory-modal compact-modal" role="dialog" aria-modal="true" aria-labelledby="name-modal-title">
+      <header class="modal-header">
+        <h2 class="modal-title" id="name-modal-title">Add Item Name</h2><button type="button" class="modal-close"
+          (click)="nameModalOpen = false" aria-label="Close">×</button>
+      </header>
+      <form (ngSubmit)="addName()">
+        <div class="modal-body">
+          <div class="form-group"><label for="new-name">Item Name</label><input id="new-name" class="form-control"
+              name="nameDraft" [(ngModel)]="nameDraft" required /></div>
+        </div>
+        <footer class="modal-footer"><button type="button" class="btn btn-ghost"
+            (click)="nameModalOpen = false">Cancel</button><button type="submit" class="btn btn-primary">Add</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+</section>

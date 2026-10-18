@@ -1,0 +1,230 @@
+<div class="journal-form-container">
+
+  <button class="close-btn" type="button" (click)="cancel.emit()">
+    ✕
+  </button>
+  <h2 *ngIf="isEditMode" class="form-title">Edit Journal Entry {{ entry?.entryNumber }}</h2>
+  <h2 *ngIf="!isEditMode" class="form-title">New Journal Entry</h2>
+
+  <form [formGroup]="form" class="journal-form">
+
+    <!-- HEADER -->
+    <div class="header-grid">
+
+      <div class="field">
+        <label>Posting Date</label>
+        <input type="date" formControlName="postingDate">
+      </div>
+
+      <div class="field">
+        <label>Document Date</label>
+        <input type="date" formControlName="documentDate">
+      </div>
+
+      <div class="field">
+        <label>Reference</label>
+        <input type="text" formControlName="reference">
+      </div>
+<div class="field full-width">
+  <label>Description</label>
+  <input type="text" formControlName="note">
+</div>
+
+<div class="field full-width">
+  <label>Goods Receipt (optional)</label>
+  <select formControlName="goodsReceiptId">
+    <option [ngValue]="null">-- None --</option>
+    <option *ngFor="let gr of goodsReceipts()" [ngValue]="gr.id">
+      {{ getGRLabel(gr) }}
+    </option>
+  </select>
+</div>
+
+</div>
+
+    <!-- LINES -->
+    <div class="table-wrapper" formArrayName="lines">
+
+      <table class="journal-table">
+
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Account</th>
+            <th>Expense</th>
+            <th>Cost Center</th>
+            <th>Description</th>
+            <th>Debit</th>
+            <th>Credit</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody *ngIf="lines.length > 0; else emptyLines">
+
+          <tr *ngFor="let line of lines.controls; let i = index" [formGroupName]="i">
+
+            <td>{{ i + 1 }}</td>
+
+            <td class="account-cell">
+              <div class="custom-dropdown">
+
+                <div class="dropdown-trigger" (click)="toggleAccountDropdown(i)">
+                  <span>{{ getAccountLabel(i) }}</span>
+                  <i class="pi pi-chevron-down"></i>
+                </div>
+
+                <div class="dropdown-panel" *ngIf="openLineIndex === i" (click)="$event.stopPropagation()">
+
+                  <input type="text" class="dropdown-search" placeholder="Search accounts..."
+                    [(ngModel)]="accountSearch" [ngModelOptions]="{standalone: true}" />
+
+                  <div class="dropdown-list">
+
+                    <div class="dropdown-item" [class.selected]="line.value.accountId === null"
+                      (click)="selectAccount(i, null)">
+                      -- Select --
+                    </div>
+
+                    <div class="dropdown-item" *ngFor="let account of filteredAccounts()"
+                      [class.selected]="line.value.accountId === account.id" (click)="selectAccount(i, account)">
+                      {{ account.code }} - {{ account.name }}
+                    </div>
+
+                    <div class="dropdown-empty" *ngIf="filteredAccounts().length === 0">
+                      No accounts found
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+            </td>
+
+            <!-- EXPENSE (depends on selected account) -->
+            <td class="expense-cell">
+              <div class="custom-dropdown">
+
+                <div class="dropdown-trigger" [class.disabled]="!line.value.accountId"
+                  (click)="toggleExpenseDropdown(i)">
+                  <span>{{ getExpenseLabel(i) }}</span>
+                  <i class="pi pi-chevron-down"></i>
+                </div>
+
+                <div class="dropdown-panel" *ngIf="openExpenseLineIndex === i" (click)="$event.stopPropagation()">
+
+                  <input type="text" class="dropdown-search" placeholder="Search expenses..."
+                    [(ngModel)]="expenseSearch" [ngModelOptions]="{standalone: true}" />
+
+                  <div class="dropdown-list">
+
+                    <div *ngIf="expensesLoadingByLine[i]" class="dropdown-empty">
+                      Loading expenses...
+                    </div>
+
+                    <ng-container *ngIf="!expensesLoadingByLine[i]">
+
+                      <div class="dropdown-item" [class.selected]="line.value.expenseReportId === null"
+                        (click)="selectExpense(i, null)">
+                        -- None --
+                      </div>
+
+                      <div class="dropdown-item" *ngFor="let expense of filteredExpenses(i)"
+                        [class.selected]="line.value.expenseReportId === expense.id"
+                        (click)="selectExpense(i, expense)">
+                        {{ expense.documentNumber ? (expense.documentNumber + ' - ') : '' }}{{ expense.description }}
+                        <span *ngIf="expense.amount != null"> ({{ expense.amount | number:'1.2-2' }})</span>
+                      </div>
+
+                      <div class="dropdown-empty" *ngIf="filteredExpenses(i).length === 0">
+                        No expenses found
+                      </div>
+
+                    </ng-container>
+
+                  </div>
+
+                </div>
+
+              </div>
+            </td>
+
+            <!-- COST CENTER -->
+            <td class="cost-center-cell">
+              <select formControlName="costCenterId">
+                <option [ngValue]="null">-- None --</option>
+                <option *ngFor="let cc of costCenters" [ngValue]="cc.id">
+                  {{ cc.name }}
+                </option>
+              </select>
+            </td>
+
+            <td>
+              <input formControlName="description">
+            </td>
+
+            <td>
+              <input type="text" inputmode="decimal" [value]="getDebitDisplay(i)" (input)="onDebitInput(i, $event)"
+                (blur)="onDebitBlur(i, $event)" [disabled]="hasCredit(i)" placeholder="0">
+            </td>
+
+            <td>
+              <input type="text" inputmode="decimal" [value]="getCreditDisplay(i)" (input)="onCreditInput(i, $event)"
+                (blur)="onCreditBlur(i, $event)" [disabled]="hasDebit(i)" placeholder="0">
+            </td>
+
+            <td>
+              <button type="button" class="delete-btn" (click)="removeLine(i)">
+                <i class="pi pi-trash"></i> </button>
+            </td>
+
+          </tr>
+
+        </tbody>
+
+        <ng-template #emptyLines>
+          <tr>
+            <td colspan="8" style="text-align:center; padding:20px;">
+              No lines added
+            </td>
+          </tr>
+        </ng-template>
+
+        <tfoot>
+          <tr>
+            <td colspan="5" class="totals-title">TOTALS</td>
+            <td class="debit">{{ totalDebit | number:'1.2-2' }}</td>
+            <td class="credit">{{ totalCredit | number:'1.2-2' }}</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td colspan="8" class="balance-message" [class.balanced]="isBalanced"
+              [class.credit-short]="shortSide === 'credit'" [class.debit-short]="shortSide === 'debit'">
+              {{ balanceMessage }}
+            </td>
+          </tr>
+        </tfoot>
+
+      </table>
+
+    </div>
+
+    <!-- ADD LINE -->
+    <button type="button" class="add-btn" (click)="addLine()">
+      + Add Line
+    </button>
+
+    <!-- FOOTER -->
+    <div class="footer-buttons">
+      <button type="button" class="cancel-btn" (click)="cancel.emit()">
+        Cancel
+      </button>
+
+      <button type="button" class="save-btn" (click)="save()" [disabled]="isSaving">
+        {{ isSaving ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Journal Entry') }}
+      </button>
+    </div>
+
+  </form>
+</div>

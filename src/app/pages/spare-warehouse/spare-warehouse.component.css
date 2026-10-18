@@ -1,0 +1,9 @@
+/* Custom styles for spare-warehouse component */
+.grid {
+  align-items: start;
+}
+@media (max-width: 992px) {
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+}

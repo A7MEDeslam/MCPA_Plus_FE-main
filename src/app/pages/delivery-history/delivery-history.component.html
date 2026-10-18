@@ -1,0 +1,108 @@
+<div class="history-page">
+  <header class="history-header">
+    <div>
+      <span class="eyebrow">Inventory</span>
+      <h1>Serial history log</h1>
+    </div>
+    <button class="btn btn-ghost" type="button" [disabled]="loading()" (click)="load()">
+      <i [class]="loading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"></i> Refresh
+    </button>
+  </header>
+
+  <div class="history-filters">
+    <div class="search-box">
+      <i class="pi pi-search"></i>
+      <input placeholder="Search serial, product, request, user or notes" [ngModel]="search()"
+        (ngModelChange)="search.set($event)" />
+    </div>
+    <select [ngModel]="actionFilter()" (ngModelChange)="actionFilter.set($event)">
+      <option value="">All actions</option>
+      <option *ngFor="let type of actionTypes()" [value]="type">{{ type }}</option>
+    </select>
+    <span class="count">{{ filtered().length }} / {{ entries().length }}</span>
+  </div>
+
+  <div class="table-state" *ngIf="loading()"><i class="pi pi-spin pi-spinner"></i> Loading history...</div>
+  <div class="table-state" *ngIf="!loading() && !filtered().length">No history found.</div>
+
+  <div class="table-wrap" *ngIf="!loading() && filtered().length">
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Serial</th>
+          <th>Product</th>
+          <th>Action</th>
+          <th>Status change</th>
+          <th>Request</th>
+          <th>By</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let e of filtered()" (click)="openSerial(e.serialNumberId)">
+          <td>{{ e.actionAt | date:'d MMM yyyy, h:mm a' }}</td>
+          <td><strong>{{ e.serial }}</strong></td>
+          <td>{{ e.finishedProductName }}</td>
+          <td><span class="badge">{{ e.actionTypeName }}</span></td>
+          <td class="status-change">
+            {{ e.fromStatusName }} <i class="pi pi-arrow-right"></i> {{ e.toStatusName }}
+          </td>
+          <td>{{ e.deliveryRequestNumber || '-' }}</td>
+          <td>{{ e.actionByName || '-' }}</td>
+          <td class="notes">{{ e.notes || '-' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== Serial timeline ===== -->
+<div *ngIf="serialOpen()" class="drawer-overlay" (click)="closeSerial()">
+  <aside class="drawer" (click)="$event.stopPropagation()">
+    <div class="drawer-header">
+      <span class="drawer-title">Serial timeline</span>
+      <button class="drawer-close" type="button" (click)="closeSerial()"><i class="pi pi-times"></i></button>
+    </div>
+
+    <div class="drawer-body">
+      <div class="table-state" *ngIf="serialLoading()"><i class="pi pi-spin pi-spinner"></i> Loading...</div>
+
+      <ng-container *ngIf="!serialLoading() && selectedSerial() as s">
+        <div class="serial-summary">
+          <h3>{{ s.serial }}</h3>
+          <p>{{ s.finishedProductName }}</p>
+          <div class="summary-row">
+            <span>Current status</span>
+            <span class="badge">{{ s.currentStatusName }}</span>
+          </div>
+          <div class="summary-row" *ngIf="s.customerContractId">
+            <span>Contract</span><strong>#{{ s.customerContractId }}</strong>
+          </div>
+        </div>
+
+        <div class="table-state" *ngIf="!s.history.length">No history for this serial.</div>
+
+        <ol class="timeline" *ngIf="s.history.length">
+          <li class="timeline-item" *ngFor="let h of s.history">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-top">
+                <span class="badge">{{ h.actionTypeName }}</span>
+                <time>{{ h.actionAt | date:'d MMM yyyy, h:mm a' }}</time>
+              </div>
+              <p class="status-change">
+                {{ h.fromStatusName }} <i class="pi pi-arrow-right"></i> {{ h.toStatusName }}
+              </p>
+              <p class="timeline-notes" *ngIf="h.notes">{{ h.notes }}</p>
+              <div class="timeline-meta">
+                <span *ngIf="h.deliveryRequestNumber"><i class="pi pi-truck"></i> {{ h.deliveryRequestNumber }}</span>
+                <span *ngIf="h.actionByName"><i class="pi pi-user"></i> {{ h.actionByName }}</span>
+              </div>
+            </div>
+          </li>
+        </ol>
+      </ng-container>
+    </div>
+  </aside>
+</div>

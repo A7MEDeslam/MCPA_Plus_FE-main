@@ -1,0 +1,140 @@
+<div class="login-wrapper">
+  <!-- Dynamic Glowing Background Orbs -->
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+  <div class="glow-orb orb-3"></div>
+
+  <div class="login-container">
+    <!-- Brand Header -->
+    <div class="brand-header">
+      <div class="brand-icon-wrapper">
+        <i class="pi pi-shield"></i>
+      </div>
+      <h1 class="brand-name">ProFlow</h1>
+      <p class="brand-subtitle">Procurement &amp; Production Portal</p>
+    </div>
+
+    <!-- Verify OTP Card -->
+    <div class="login-card glass-panel animate-fade-in">
+      <!-- Back Button -->
+      <button type="button" class="btn-back-login" (click)="backToForgotPassword()">
+        <i class="pi pi-arrow-left"></i> Back
+      </button>
+
+      <!-- Step 1: Verify Code -->
+      <ng-container *ngIf="step === 1">
+        <h2 class="card-title">Verify Code</h2>
+        <p class="step-description">Enter the 6-digit code we sent to <strong style="color:#ffffff;">{{email}}</strong>.</p>
+
+        <form [formGroup]="verifyOtpForm" (ngSubmit)="verifyOtp()" class="login-form">
+          <div class="form-field">
+            <label class="field-label">Verification Code</label>
+            <div class="input-wrapper">
+              <i class="pi pi-key input-icon"></i>
+              <input
+                formControlName="otp"
+                type="text"
+                maxlength="6"
+                class="login-control otp-input"
+                placeholder="••••••"
+                [class.has-error]="verifyOtpForm.get('otp')?.invalid && verifyOtpForm.get('otp')?.touched"
+              />
+            </div>
+            <span class="field-error-msg" *ngIf="getOtpError('otp')">
+              <i class="pi pi-exclamation-circle"></i> {{ getOtpError('otp') }}
+            </span>
+          </div>
+
+          <div class="login-alert alert-danger" *ngIf="otpError">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>{{ otpError }}</span>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-ghost-dark" type="button" (click)="backToForgotPassword()">Cancel</button>
+            <button class="btn-login-submit" type="submit" [disabled]="isLoadingVerifyOtp">
+              <span *ngIf="!isLoadingVerifyOtp">Verify <i class="pi pi-arrow-right" style="margin-left:6px;"></i></span>
+              <span class="spinner-loading" *ngIf="isLoadingVerifyOtp">
+                <i class="pi pi-spin pi-spinner"></i> Verifying...
+              </span>
+            </button>
+          </div>
+
+          <div class="resend-wrapper">
+            <button class="btn-resend" type="button" (click)="resendOtp()" [disabled]="isLoadingResendOtp || resendTimer>0">
+              {{ resendTimer>0 ? ('Resend in ' + resendTimer + 's') : 'Resend code' }}
+            </button>
+          </div>
+        </form>
+      </ng-container>
+
+      <!-- Step 2: Reset Password -->
+      <ng-container *ngIf="step === 2">
+        <h2 class="card-title">Set New Password</h2>
+        <p class="step-description">Create a strong new password for your account.</p>
+
+        <form [formGroup]="resetPasswordForm" (ngSubmit)="resetPassword()" class="login-form">
+          <div class="form-field">
+            <label class="field-label">New Password</label>
+            <div class="input-wrapper">
+              <i class="pi pi-lock input-icon"></i>
+              <input
+                type="password"
+                formControlName="newPassword"
+                class="login-control"
+                placeholder="••••••••"
+                [class.has-error]="resetPasswordForm.get('newPassword')?.invalid && resetPasswordForm.get('newPassword')?.touched"
+              />
+            </div>
+            <span class="field-error-msg" *ngIf="getResetPasswordError('newPassword')">
+              <i class="pi pi-exclamation-circle"></i> {{ getResetPasswordError('newPassword') }}
+            </span>
+          </div>
+
+          <div class="form-field">
+            <label class="field-label">Confirm Password</label>
+            <div class="input-wrapper">
+              <i class="pi pi-lock input-icon"></i>
+              <input
+                type="password"
+                formControlName="confirmPassword"
+                class="login-control"
+                placeholder="••••••••"
+                [class.has-error]="resetPasswordForm.get('confirmPassword')?.invalid && resetPasswordForm.get('confirmPassword')?.touched"
+              />
+            </div>
+            <span class="field-error-msg" *ngIf="getResetPasswordError('confirmPassword')">
+              <i class="pi pi-exclamation-circle"></i> {{ getResetPasswordError('confirmPassword') }}
+            </span>
+          </div>
+
+          <div class="login-alert alert-danger" *ngIf="resetPasswordError">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>{{ resetPasswordError }}</span>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-ghost-dark" type="button" (click)="backToForgotPassword()">Cancel</button>
+            <button class="btn-login-submit" type="submit" [disabled]="isLoadingResetPassword">
+              <span *ngIf="!isLoadingResetPassword">Save Password</span>
+              <span class="spinner-loading" *ngIf="isLoadingResetPassword">
+                <i class="pi pi-spin pi-spinner"></i> Saving...
+              </span>
+            </button>
+          </div>
+        </form>
+      </ng-container>
+
+      <!-- Success Message -->
+      <div class="login-alert alert-success animate-fade-in" *ngIf="passwordResetSuccess" style="margin-top:16px;">
+        <i class="pi pi-check-circle"></i>
+        <span>Password reset successful. Redirecting to login...</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="login-footer">
+      <p>&copy; {{ currentYear }} ProFlow Systems. All rights reserved.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,432 @@
+<div class="page active" id="page-mobilewh">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-truck" style="margin-right: 8px;"></i>Mobile Warehouse</h1>
+      <p>Manage raw materials and serial numbers in transit or on mobile sites</p>
+    </div>
+    <div class="flex" style="gap: 12px; align-items: center;">
+      @if (selectedWarehouseId() && canManage) {
+        @if (activeTab() === 'items') {
+          <button class="btn btn-primary" (click)="openAssignItem()">+ Assign Raw Material</button>
+        } @else {
+          <button class="btn btn-primary" (click)="openAssignSerials()">+ Assign Serials</button>
+        }
+      }
+    </div>
+  </div>
+
+  @if (!selectedWarehouseId()) {
+    <div class="card" style="padding: 40px; text-align: center;">
+      <i class="pi pi-exclamation-triangle" style="font-size: 3rem; color: var(--amber); margin-bottom: 15px;"></i>
+      <h3>No Mobile Warehouse Configured</h3>
+      <p style="color: var(--text-muted);">Please configure a Mobile warehouse in Master Data.</p>
+    </div>
+  } @else {
+    <!-- Stats Banner -->
+    <div class="stat-grid" style="margin-bottom: 24px;">
+      <div class="stat-card">
+        <div class="stat-label">Warehouse Name</div>
+        <div class="stat-value">{{activeWarehouse()?.name}}</div>
+        <div class="stat-sub">{{activeWarehouse()?.code}}</div>
+      </div>
+      <div class="stat-card teal">
+        <div class="stat-label">Raw Material Types</div>
+        <div class="stat-value">{{mwService.items().length}}</div>
+        <div class="stat-sub">Types currently in transit</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-label">Active Serials</div>
+        <div class="stat-value">{{mwService.serials().length}}</div>
+        <div class="stat-sub">Tracked units on site</div>
+      </div>
+    </div>
+
+    <!-- Tabs header -->
+    <div class="card" style="margin-bottom: 20px; padding: 0;">
+      <div class="tabs-container" style="display: flex; border-bottom: 1px solid var(--border);">
+        <button class="tab-btn" [class.active]="activeTab() === 'items'" (click)="setTab('items')" style="flex: 1; padding: 15px; font-weight: 600; border: none; background: transparent; cursor: pointer; border-bottom: 3px solid transparent;" [style.border-bottom-color]="activeTab() === 'items' ? 'var(--teal)' : 'transparent'">
+          <i class="pi pi-box" style="margin-right: 6px;"></i>Raw Material Batches
+        </button>
+        <button class="tab-btn" [class.active]="activeTab() === 'serials'" (click)="setTab('serials')" style="flex: 1; padding: 15px; font-weight: 600; border: none; background: transparent; cursor: pointer; border-bottom: 3px solid transparent;" [style.border-bottom-color]="activeTab() === 'serials' ? 'var(--teal)' : 'transparent'">
+          <i class="pi pi-id-card" style="margin-right: 6px;"></i>Serial Numbers (Finished Goods)
+        </button>
+        <button class="tab-btn" [class.active]="activeTab() === 'history'" (click)="setTab('history')" style="flex: 1; padding: 15px; font-weight: 600; border: none; background: transparent; cursor: pointer; border-bottom: 3px solid transparent;" [style.border-bottom-color]="activeTab() === 'history' ? 'var(--amber)' : 'transparent'">
+          <i class="pi pi-history" style="margin-right: 6px;"></i>Transaction History
+        </button>
+      </div>
+    </div>
+
+    <!-- Raw Materials Tab Content -->
+    @if (activeTab() === 'items') {
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Inventory Batches</span>
+          <div class="search-input-wrapper">
+            <i class="pi pi-search search-icon"></i>
+            <input class="form-control search-input" placeholder="Search materials..." [ngModel]="itemSearch()" (ngModelChange)="itemSearch.set($event); itemPagination.currentPage.set(1)" />
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Material Code</th>
+                <th>Material Name</th>
+                <th>Remaining Qty</th>
+                <th>Original Qty</th>
+                <th>Assigned At</th>
+                @if (canManage) {
+                  <th>Actions</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of pagedItems(); track row.id) {
+                <tr>
+                  <td><b>{{row.rawMaterialCode}}</b></td>
+                  <td>{{row.rawMaterialName}}</td>
+                  <td><span class="badge badge-success" style="font-size: 0.9rem;">{{row.quantity | number}}</span></td>
+                  <td>{{row.originalQuantity | number}}</td>
+                  <td>{{row.assignedAt | date:'medium'}}</td>
+                  @if (canManage) {
+                    <td>
+                      <div class="flex" style="gap: 8px;">
+                        <button class="btn btn-sm btn-outline-teal" (click)="openItemAction(row, 'project')">
+                          <i class="pi pi-briefcase" style="margin-right: 4px;"></i>Assign to Project
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" (click)="openItemAction(row, 'stock')">
+                          <i class="pi pi-undo" style="margin-right: 4px;"></i>Return Stock
+                        </button>
+                      </div>
+                    </td>
+                  }
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="empty">No raw material batches found in this warehouse.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-pagination
+          [totalItems]="filteredItems().length"
+          [pageSize]="itemPagination.pageSize()"
+          [currentPage]="itemPagination.currentPage()"
+          (pageChange)="itemPagination.currentPage.set($event)">
+        </app-pagination>
+      </div>
+    }
+
+    <!-- Serials Tab Content -->
+    @if (activeTab() === 'serials') {
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Active Serials</span>
+          <div class="search-input-wrapper">
+            <i class="pi pi-search search-icon"></i>
+            <input class="form-control search-input" placeholder="Search serials..." [ngModel]="serialSearch()" (ngModelChange)="serialSearch.set($event); serialPagination.currentPage.set(1)" />
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Serial Number</th>
+                <th>Product Name</th>
+                <th>Assigned At</th>
+                @if (canManage) {
+                  <th>Actions</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of pagedSerials(); track row.id) {
+                <tr>
+                  <td><b>{{row.serial}}</b></td>
+                  <td>{{row.productName}}</td>
+                  <td>{{row.assignedAt | date:'medium'}}</td>
+                  @if (canManage) {
+                    <td>
+                      <div class="flex" style="gap: 8px;">
+                        <button class="btn btn-sm btn-outline-teal" (click)="openSerialAction(row, 'project')">
+                          <i class="pi pi-briefcase" style="margin-right: 4px;"></i>Assign to Project
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" (click)="openSerialAction(row, 'stock')">
+                          <i class="pi pi-undo" style="margin-right: 4px;"></i>Return Stock
+                        </button>
+                      </div>
+                    </td>
+                  }
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5" class="empty">No serial numbers found in this warehouse.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-pagination
+          [totalItems]="filteredSerials().length"
+          [pageSize]="serialPagination.pageSize()"
+          [currentPage]="serialPagination.currentPage()"
+          (pageChange)="serialPagination.currentPage.set($event)">
+        </app-pagination>
+      </div>
+    }
+
+    <!-- History Tab Content -->
+    @if (activeTab() === 'history') {
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Transaction History</span>
+          <div class="search-input-wrapper">
+            <i class="pi pi-search search-icon"></i>
+            <input class="form-control search-input" placeholder="Search history..." [ngModel]="historySearch()" (ngModelChange)="historySearch.set($event); historyPagination.currentPage.set(1)" />
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Material</th>
+                <th>Qty In</th>
+                <th>Qty Out</th>
+                <th>Balance</th>
+                <th>Project</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of pagedHistory(); track row.id) {
+                <tr>
+                  <td style="white-space:nowrap">{{row.transactionDate | date:'medium'}}</td>
+                  <td>
+                    <span class="badge"
+                      [style.background]="row.transactionType === 'MobileWarehouseIn' ? 'rgba(13,126,138,0.15)' :
+                                          row.transactionType === 'MobileWarehouseReturn' ? 'rgba(16,185,129,0.15)' :
+                                          'rgba(212,130,26,0.15)'"
+                      [style.color]="row.transactionType === 'MobileWarehouseIn' ? 'var(--teal)' :
+                                     row.transactionType === 'MobileWarehouseReturn' ? 'var(--success)' :
+                                     'var(--amber)'">
+                      {{row.transactionType}}
+                    </span>
+                  </td>
+                  <td>
+                    <strong>{{row.materialCode}}</strong><br/>
+                    <small style="color:var(--text-muted)">{{row.materialName}}</small>
+                  </td>
+                  <td>
+                    @if (row.quantityIn > 0) {
+                      <span class="badge badge-success">+{{row.quantityIn | number}}</span>
+                    } @else { <span style="color:var(--text-muted)">—</span> }
+                  </td>
+                  <td>
+                    @if (row.quantityOut > 0) {
+                      <span class="badge" style="background:rgba(239,68,68,0.12);color:var(--danger)">-{{row.quantityOut | number}}</span>
+                    } @else { <span style="color:var(--text-muted)">—</span> }
+                  </td>
+                  <td>{{row.balanceAfter | number}}</td>
+                  <td>{{row.projectName || '—'}}</td>
+                  <td>
+                    <span style="font-size:0.88rem" [title]="row.notes || ''">{{row.notes || '—'}}</span>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="8" class="empty">No transaction history found for this warehouse.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-pagination
+          [totalItems]="filteredHistory().length"
+          [pageSize]="historyPagination.pageSize()"
+          [currentPage]="historyPagination.currentPage()"
+          (pageChange)="historyPagination.currentPage.set($event)">
+        </app-pagination>
+      </div>
+    }
+  }
+</div>
+
+<!-- MODAL: Assign Raw Material to Mobile Warehouse -->
+@if (assignItemModalOpen) {
+  <div class="modal-overlay open" (click)="closeAssignItem()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">Assign Raw Material from Main Stock</span>
+        <button class="modal-close" (click)="closeAssignItem()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group" style="width: 100%;">
+            <label>Raw Material</label>
+            <app-searchable-select
+              [(ngModel)]="assignItemForm.rawMaterialId"
+              [options]="rawMaterialOptions()"
+              placeholder="Select raw material"
+              searchPlaceholder="Search materials...">
+            </app-searchable-select>
+          </div>
+        </div>
+        <div class="form-grid" style="margin-top: 15px;">
+          <div class="form-group" style="width: 100%;">
+            <label>Quantity to Assign</label>
+            <input class="form-control" type="number" min="0.01" step="any" [(ngModel)]="assignItemForm.quantity" placeholder="Enter quantity..." />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="closeAssignItem()">Cancel</button>
+        <button class="btn btn-primary" (click)="submitAssignItem()">Assign to Mobile</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: Assign Serials to Mobile Warehouse -->
+@if (assignSerialsModalOpen) {
+  <div class="modal-overlay open" (click)="closeAssignSerials()">
+    <div class="modal" (click)="$event.stopPropagation()" style="max-width: 600px;">
+      <div class="modal-header">
+        <span class="modal-title">Assign Finished Product Serials from Main Stock</span>
+        <button class="modal-close" (click)="closeAssignSerials()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Filter Available Serials (In Stock)</label>
+          <input class="form-control" placeholder="Search by Serial or Product..." [ngModel]="serialSearchFilter()" (ngModelChange)="serialSearchFilter.set($event)" />
+        </div>
+        <div class="serial-checklist" style="max-height: 280px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 12px; background: rgba(0,0,0,0.02);">
+          <div style="margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid var(--border); padding-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="chk-all-serials" (change)="toggleAllVisibleSerials($event)" [checked]="availableSerials().length > 0 && selectedSerialIds().length === availableSerials().length" />
+            <label for="chk-all-serials">Select All Visible ({{availableSerials().length}})</label>
+          </div>
+          @for (s of availableSerials(); track s.id) {
+            <div style="display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dotted var(--border);">
+              <input type="checkbox" [id]="'chk-serial-' + s.id" [checked]="selectedSerialIds().includes(s.id)" (change)="toggleSerialSelection(s.id)" />
+              <label [for]="'chk-serial-' + s.id" style="cursor: pointer; flex: 1;">
+                <strong>{{s.serial}}</strong> - {{s.productName}}
+              </label>
+            </div>
+          } @empty {
+            <div class="empty" style="padding: 20px; text-align: center; color: var(--text-muted);">
+              No in-stock serial numbers found.
+            </div>
+          }
+        </div>
+        <div style="margin-top: 10px; font-size: 0.9rem; font-weight: 600; color: var(--teal);">
+          Selected: {{selectedSerialIds().length}} serial(s)
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="closeAssignSerials()">Cancel</button>
+        <button class="btn btn-primary" (click)="submitAssignSerials()">Assign Serials</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: Act on Raw Material Batch (Assign to project / return to stock) -->
+@if (itemActionModalOpen && activeItemAction) {
+  <div class="modal-overlay open" (click)="closeItemAction()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">
+          <i class="pi" [ngClass]="activeItemAction.actionType === 1 ? 'pi-briefcase' : 'pi-undo'" style="margin-right: 8px;"></i>
+          {{activeItemAction.actionType === 1 ? 'Assign Material to Project' : 'Return Material to Main Stock'}}
+        </span>
+        <button class="modal-close" (click)="closeItemAction()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info" style="margin-bottom: 15px; padding: 10px; border-radius: 4px; background: rgba(13, 126, 138, 0.1); border-left: 4px solid var(--teal);">
+          Material: <strong>{{activeItemAction.item.rawMaterialName}}</strong><br/>
+          Available in Mobile WH: <strong>{{activeItemAction.item.quantity | number}} {{activeItemAction.item.rawMaterialUnit || 'units'}}</strong>
+        </div>
+
+        <div class="form-grid">
+          @if (activeItemAction.actionType === 1) {
+            <div class="form-group" style="width: 100%;">
+              <label>Select Project</label>
+              <app-searchable-select
+                [(ngModel)]="activeItemAction.projectId"
+                [options]="projectOptions()"
+                placeholder="Select project"
+                searchPlaceholder="Search projects...">
+              </app-searchable-select>
+            </div>
+          }
+        </div>
+
+        <div class="form-grid" style="margin-top: 15px;">
+          <div class="form-group" style="width: 100%;">
+            <label>Quantity</label>
+            <input class="form-control" type="number" min="0.01" step="any" [max]="activeItemAction.item.quantity" [(ngModel)]="activeItemAction.quantity" />
+          </div>
+        </div>
+
+        <div class="form-grid" style="margin-top: 15px;">
+          <div class="form-group" style="width: 100%;">
+            <label>Notes</label>
+            <textarea class="form-control" [(ngModel)]="activeItemAction.notes" placeholder="Optional notes..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="closeItemAction()">Cancel</button>
+        <button class="btn btn-primary" (click)="submitItemAction()">Submit Action</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: Act on Serial Number (Assign to project / return to stock) -->
+@if (serialActionModalOpen && activeSerialAction) {
+  <div class="modal-overlay open" (click)="closeSerialAction()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title">
+          <i class="pi" [ngClass]="activeSerialAction.actionType === 1 ? 'pi-briefcase' : 'pi-undo'" style="margin-right: 8px;"></i>
+          {{activeSerialAction.actionType === 1 ? 'Assign Serial to Project' : 'Return Serial to Main Stock'}}
+        </span>
+        <button class="modal-close" (click)="closeSerialAction()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info" style="margin-bottom: 15px; padding: 10px; border-radius: 4px; background: rgba(13, 126, 138, 0.1); border-left: 4px solid var(--teal);">
+          Serial: <strong>{{activeSerialAction.serial.serial}}</strong><br/>
+          Product: <strong>{{activeSerialAction.serial.productName}}</strong>
+        </div>
+
+        <div class="form-grid">
+          @if (activeSerialAction.actionType === 1) {
+            <div class="form-group" style="width: 100%;">
+              <label>Select Project</label>
+              <app-searchable-select
+                [(ngModel)]="activeSerialAction.projectId"
+                [options]="projectOptions()"
+                placeholder="Select project"
+                searchPlaceholder="Search projects...">
+              </app-searchable-select>
+            </div>
+          }
+        </div>
+
+        <div class="form-grid" style="margin-top: 15px;">
+          <div class="form-group" style="width: 100%;">
+            <label>Notes</label>
+            <textarea class="form-control" [(ngModel)]="activeSerialAction.notes" placeholder="Optional notes..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="closeSerialAction()">Cancel</button>
+        <button class="btn btn-primary" (click)="submitSerialAction()">Submit Action</button>
+      </div>
+    </div>
+  </div>
+}

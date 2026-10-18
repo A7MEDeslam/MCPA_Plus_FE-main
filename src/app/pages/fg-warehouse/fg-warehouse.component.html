@@ -1,0 +1,210 @@
+<div class="page active" id="page-fgwh">
+  <div class="page-header page-header-actions">
+    <div>
+      <h1><i class="pi pi-box" style="margin-right: 8px;"></i>Finished Goods Warehouse</h1>
+      <p>Stock of completed production output products</p>
+    </div>
+    @if (canCreateProduct && activeTab() === 'finished') {
+      <button class="btn btn-primary" type="button" (click)="openAddProduct()">
+        <i class="pi pi-plus"></i> Add finished product
+      </button>
+    }
+  </div>
+  <div class="fg-warehouse-tabs" role="tablist" aria-label="Finished goods warehouse sections">
+    <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'finished'"
+      [class.active]="activeTab() === 'finished'" (click)="selectTab('finished')">
+      <i class="pi pi-box"></i> Finished Goods
+    </button>
+    <button type="button" role="tab" [attr.aria-selected]="activeTab() === 'serials'"
+      [class.active]="activeTab() === 'serials'" (click)="selectTab('serials')">
+      <i class="pi pi-id-card"></i> Serial Registry
+    </button>
+  </div>
+
+  @if (activeTab() === 'finished') {
+  <div class="stat-grid" id="fg-stats">
+    <div class="stat-card green"><div class="stat-label">Product Types</div><div class="stat-value">{{productTypes()}}</div><div class="stat-sub">Finished goods SKUs</div></div>
+    <div class="stat-card"><div class="stat-label">Units in Stock</div><div class="stat-value">{{totalUnits()}}</div><div class="stat-sub">Finished goods</div></div>
+    <div class="stat-card navy"><div class="stat-label">Total Serials</div><div class="stat-value">{{totalSerials()}}</div><div class="stat-sub">Registered units</div></div>
+    <div class="stat-card amber"><div class="stat-label">Completed WOs</div><div class="stat-value">{{completedWOs()}}</div><div class="stat-sub">Closed orders</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Product Stock Balances</span>
+      <div class="search-input-wrapper">
+        <i class="pi pi-search search-icon"></i>
+        <input class="form-control search-input" placeholder="Search products..." [ngModel]="stockSearch()" (ngModelChange)="stockSearch.set($event); pagination.currentPage.set(1)" />
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table><thead><tr><th>Product Code</th><th>Product Name</th><th>Model Type</th><th>Available</th><th>Reserved</th><th>Total Stock</th><th>Total Produced</th><th>Last Production</th><th>Actions</th></tr></thead>
+      <tbody id="fgwh-tbody">
+        @for (p of pagedFgStockValues(); track p.code) {
+          <tr>
+            <td><b>{{p.code}}</b></td>
+            <td>{{p.name}}</td>
+            <td>{{p.modelType || '-'}}</td>
+            <td><b>{{p.qty | number}}</b></td>
+            <td><span class="reserved-badge" [class.empty]="!p.reserved">{{p.reserved | number}}</span></td>
+            <td>{{p.totalStock | number}}</td>
+            <td>{{p.total}}</td>
+            <td>{{p.lastDate}}</td>
+            <td>
+              <button class="btn btn-xs btn-primary" type="button" [disabled]="!p.qty" (click)="openReserve(p)">
+                Reserve for MTO
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody></table>
+    </div>
+    <app-pagination
+      [totalItems]="fgStockValues().length"
+      [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()"
+      (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+  } @else {
+    <app-serials [embedded]="true"></app-serials>
+  }
+</div>
+
+@if (modalOpen) {
+  <div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+    <div class="modal fg-product-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title"><i class="pi pi-plus-circle"></i> New Finished Product</span>
+        <button class="modal-close" type="button" (click)="closeAddProduct()" aria-label="Close">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-intro">
+          <span class="eyebrow">Product master</span>
+          <p>Define the finished product and its serial pattern. Stock is created through completed production.</p>
+        </div>
+
+        <div class="form-grid fg-product-form-grid">
+          <div class="form-group full-width">
+            <label><i class="pi pi-tag"></i> Product name <span class="req">*</span></label>
+            <app-searchable-select
+              [options]="productNameOptions()"
+              [(ngModel)]="productForm.name"
+              placeholder="Select finished product name"
+              searchPlaceholder="Search product names..."
+              [allowEmpty]="true"
+              emptyLabel="-- Select product --">
+            </app-searchable-select>
+          </div>
+
+          <div class="form-group">
+            <label><i class="pi pi-cog"></i> Model type</label>
+            <input class="form-control" maxlength="50" placeholder="e.g. GenieAgro6600"
+              [(ngModel)]="productForm.modelType" (input)="onModelInput($event)" />
+          </div>
+
+          <div class="form-group">
+            <label><i class="pi pi-hashtag"></i> Serial prefix <span class="req">*</span></label>
+            <input class="form-control mono" maxlength="10" placeholder="e.g. CPU"
+              [(ngModel)]="productForm.serialPrefix" (input)="onPrefixInput($event)" />
+          </div>
+
+          <div class="form-group">
+            <label><i class="pi pi-sort-numeric-up"></i> Serial start number <span class="req">*</span></label>
+            <input class="form-control mono" type="text" inputmode="numeric" maxlength="9" placeholder="0"
+              [(ngModel)]="productForm.serialStartNumber" (input)="onNumberInput($event)" />
+          </div>
+        </div>
+
+        <div class="serial-preview">
+          <i class="pi pi-eye"></i>
+          <span>First serial preview:</span>
+          <code>{{ serialPreview() }}</code>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" type="button" (click)="closeAddProduct()">Cancel</button>
+        <button class="btn btn-primary" type="button" [disabled]="productSaving" (click)="saveProduct()">
+          {{ productSaving ? 'Saving...' : 'Save Product' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (reserveModalOpen) {
+  <div class="modal-overlay open" (click)="closeReserveIfOverlay($event)">
+    <div class="modal reserve-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <span class="modal-title"><i class="pi pi-bookmark"></i> Reserve MTS Stock for MTO</span>
+        <button class="modal-close" type="button" (click)="closeReserve()" aria-label="Close"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-intro">
+          <span class="eyebrow">Stock allocation</span>
+          <p><strong>{{reserveTarget?.name}}</strong> will stay in the warehouse, but the selected units will be reserved for this customer request.</p>
+        </div>
+
+        <div class="reserve-summary">
+          <div><span>Available</span><strong>{{reserveTarget?.qty | number}}</strong></div>
+          <div><span>Already reserved</span><strong>{{reserveTarget?.reserved | number}}</strong></div>
+          <div><span>Selected</span><strong>{{selectedSerialIds().length}}</strong></div>
+        </div>
+
+        <div class="form-grid reserve-form-grid">
+          <div class="form-group">
+            <label>Customer <span class="req">*</span></label>
+            <select class="form-control" [(ngModel)]="reserveForm.customerId" (ngModelChange)="onReserveCustomerChange($event)">
+              <option [ngValue]="null">-- Select customer --</option>
+              @for (customer of customers(); track customer.id) {
+                <option [ngValue]="customer.id">{{customer.companyName}}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Contract / POC <span class="req">*</span></label>
+            <select class="form-control" [(ngModel)]="reserveForm.customerContractId" [disabled]="!reserveForm.customerId || customerContractsLoading()">
+              <option [ngValue]="null">{{customerContractsLoading() ? 'Loading contracts...' : '-- Select contract / POC --'}}</option>
+              @for (contract of customerContracts(); track contract.contractId) {
+                <option [ngValue]="contract.contractId">{{contract.contractTitle}} · #{{contract.contractId}}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Quantity to reserve <span class="req">*</span></label>
+            <input class="form-control" type="number" min="1" [max]="reserveTarget?.qty || 1"
+              [(ngModel)]="reserveForm.quantity" (ngModelChange)="onReserveQuantityChange($event)" />
+          </div>
+        </div>
+
+        <div class="serial-picker">
+          <div class="serial-picker-heading">
+            <span>Available serials</span>
+            <small>Select the exact units to reserve</small>
+          </div>
+          @if (availableSerialsForTarget().length) {
+            <div class="serial-picker-grid">
+              @for (serial of availableSerialsForTarget(); track serial.id) {
+                <label class="serial-option" [class.selected]="selectedSerialIds().includes(serial.id)">
+                  <input type="checkbox" [checked]="selectedSerialIds().includes(serial.id)" (change)="toggleReserveSerial(serial.id)" />
+                  <span>{{serial.serial}}</span>
+                </label>
+              }
+            </div>
+          } @else {
+            <div class="empty-serials">No available serials found for this product.</div>
+          }
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" type="button" (click)="closeReserve()">Cancel</button>
+        <button class="btn btn-primary" type="button" [disabled]="reserveSubmitting || !selectedSerialIds().length" (click)="submitReservation()">
+          {{reserveSubmitting ? 'Reserving...' : 'Confirm reservation'}}
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,180 @@
+    <header class="head">
+      <div>
+        <h3 class="title">
+          Contacts
+          @if (!loading() && contacts().length) {
+            <span class="count">{{ contacts().length }}</span>
+          }
+        </h3>
+        <p class="sub">Everyone who influences this account, and how.</p>
+      </div>
+      @if (canManage() && contacts().length) {
+        <button type="button" class="ui-btn ui-btn--primary" (click)="add.emit()">
+          <i class="pi pi-plus" aria-hidden="true"></i> Add contact
+        </button>
+      }
+    </header>
+
+    @if (loading()) {
+      <div class="grid" aria-busy="true">
+        @for (n of skeletons; track n) {
+          <div class="skeleton"></div>
+        }
+      </div>
+    } @else if (!contacts().length) {
+      <app-empty-state
+        icon="pi-address-book"
+        title="No contacts yet"
+        message="Add the people who influence this customer account."
+      >
+        @if (canManage()) {
+          <button type="button" class="ui-btn ui-btn--primary" (click)="add.emit()">
+            Add first contact
+          </button>
+        }
+      </app-empty-state>
+    } @else {
+      <ul class="coverage" aria-label="Relationship coverage">
+        @for (item of coverage(); track item.label) {
+          <li>
+            <app-badge [tone]="item.ok ? 'success' : 'warning'">
+              <i
+                [class]="item.ok ? 'pi pi-check' : 'pi pi-exclamation-circle'"
+                aria-hidden="true"
+              ></i>
+              {{ item.ok ? item.label : 'No ' + item.label.toLowerCase() + ' yet' }}
+            </app-badge>
+          </li>
+        }
+      </ul>
+
+      <div class="grid">
+        @for (row of rows(); track row.contact.id) {
+          <article class="card">
+            <div class="body" (click)="details.emit(row.contact)">
+              <div class="who">
+                <span class="avatar" aria-hidden="true">{{ row.initials }}</span>
+                <div class="identity">
+                  <button
+                    type="button"
+                    class="name"
+                    (click)="$event.stopPropagation(); details.emit(row.contact)"
+                  >
+                    {{ row.contact.name }}
+                  </button>
+                  <span class="subtitle">{{ row.subtitle }}</span>
+                </div>
+              </div>
+
+              <div class="tags">
+                @if (row.contact.isPrimary) {
+                  <app-badge tone="primary" size="sm">Primary</app-badge>
+                }
+                <app-badge [tone]="row.roleTone" size="sm">{{ row.role }}</app-badge>
+                <span class="influence" [attr.aria-label]="row.influence + ' influence'">
+                  <span class="bars" aria-hidden="true">
+                    @for (bar of bars; track bar) {
+                      <i [class.on]="bar < row.influenceRank"></i>
+                    }
+                  </span>
+                  {{ row.influence }}
+                </span>
+              </div>
+
+              <ul class="lines">
+                @if (row.contact.email) {
+                  <li>
+                    <i class="pi pi-envelope" aria-hidden="true"></i>
+                    <a [href]="'mailto:' + row.contact.email" (click)="$event.stopPropagation()">{{
+                      row.contact.email
+                    }}</a>
+                  </li>
+                }
+                @if (row.contact.phoneNumber) {
+                  <li>
+                    <i class="pi pi-phone" aria-hidden="true"></i>
+                    <a
+                      [href]="'tel:' + row.contact.phoneNumber"
+                      (click)="$event.stopPropagation()"
+                      >{{ row.contact.phoneNumber }}</a
+                    >
+                  </li>
+                }
+                @if (!row.contact.email && !row.contact.phoneNumber) {
+                  <li class="muted">No contact details</li>
+                }
+              </ul>
+            </div>
+
+            @if (canManage()) {
+              <button
+                type="button"
+                class="star"
+                [class.active]="row.contact.isPrimary"
+                [disabled]="!row.contact.isPrimary && hasPrimary()"
+                [attr.aria-pressed]="row.contact.isPrimary"
+                [title]="
+                  row.contact.isPrimary
+                    ? 'Remove primary'
+                    : hasPrimary()
+                      ? 'Remove the current primary contact first'
+                      : 'Set as primary'
+                "
+                (click)="togglePrimary.emit(row.contact)"
+              >
+                <i
+                  [class]="row.contact.isPrimary ? 'pi pi-star-fill' : 'pi pi-star'"
+                  aria-hidden="true"
+                ></i>
+              </button>
+            }
+
+            @if (row.cardUrl) {
+              <a class="file" [href]="row.cardUrl" target="_blank" rel="noopener">
+                <i class="pi pi-id-card" aria-hidden="true"></i>
+                <span class="file-text">
+                  <strong>{{ row.cardName }}</strong>
+                  <small>Business card</small>
+                </span>
+                <i class="pi pi-external-link" aria-hidden="true"></i>
+              </a>
+            } @else if (canManage()) {
+              <label class="upload">
+                <input
+                  type="file"
+                  class="sr-only"
+                  accept="image/*,.pdf"
+                  (change)="onFile(row.contact, $event)"
+                />
+                <i class="pi pi-plus" aria-hidden="true"></i> Upload business card
+              </label>
+            }
+
+            <footer class="foot">
+              <span class="added">Added {{ row.added }}</span>
+              @if (canManage()) {
+                <span class="actions">
+                  <button
+                    type="button"
+                    class="ui-btn ui-btn--ghost ui-btn--sm"
+                    (click)="edit.emit(row.contact)"
+                  >
+                    <i class="pi pi-pencil" aria-hidden="true"></i> Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="ui-btn ui-btn--quiet ui-btn--icon ui-btn--sm danger"
+                    aria-label="Delete contact"
+                    title="Delete contact"
+                    (click)="remove.emit(row.contact)"
+                  >
+                    <i class="pi pi-trash" aria-hidden="true"></i>
+                  </button>
+                </span>
+              }
+            </footer>
+          </article>
+        }
+      </div>
+    }
+  

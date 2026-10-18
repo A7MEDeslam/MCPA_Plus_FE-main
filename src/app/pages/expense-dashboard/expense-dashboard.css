@@ -1,0 +1,179 @@
+/* ---------- Bars (By Category / By Account) ---------- */
+
+.bar-row {
+  margin-bottom: 14px;
+}
+
+.bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  margin-bottom: 4px;
+}
+
+.bar-track {
+  background: #f3f4f6;
+  border-radius: 6px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: #6366f1;
+  border-radius: 6px;
+}
+
+.bar-fill.account {
+  background: #10b981;
+}
+
+/* ---------- Status chips (By Status) ---------- */
+
+.status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.status-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  min-width: 140px;
+}
+
+.status-chip .status-name {
+  font-weight: 600;
+}
+
+.status-chip .status-amount {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.status-approved { background: #ecfdf5; color: #065f46; }
+.status-pending { background: #fffbeb; color: #92400e; }
+.status-assigned { background: #eff6ff; color: #1e40af; }
+.status-rejected { background: #fef2f2; color: #991b1b; }
+
+.status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---------- Generic side-by-side row (charts / summary) ---------- */
+
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 22px;
+}
+
+.chart-col {
+  margin: 0;
+}
+
+/* Summary row overrides the generic 1fr/1fr with 2fr/1fr */
+.summary-row {
+  grid-template-columns: 3fr 2fr;
+  align-items: center;
+}
+
+/* ---------- Summary stat cards ---------- */
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 15px 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.stat-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.stat-card.total .stat-icon { background: #6366f1; }
+.stat-card.approved .stat-icon { background: #10b981; }
+.stat-card.pending .stat-icon { background: #f59e0b; }
+.stat-card.assigned .stat-icon { background: #3b82f6; }
+.stat-card.transactions .stat-icon { background: #6b7280; }
+
+.stat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 12.5px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+  .summary-row {
+    grid-template-columns: 1fr;
+  }
+  .summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.card-body {
+  padding: 10px;
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.card-edit{
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}

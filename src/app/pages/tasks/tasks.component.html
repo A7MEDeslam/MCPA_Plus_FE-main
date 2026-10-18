@@ -1,0 +1,40 @@
+<div class="page active tasks-page">
+  <div class="page-header">
+    <div>
+      <div class="eyebrow">My Work / Tasks</div>
+      <h1>{{ isPending ? 'Pending Approvals' : 'Approval History' }}</h1>
+      <p>{{ isPending ? 'Only requests that need a decision from your role appear here.' : 'A permanent record of decisions made on requests, including who acted and when.' }}</p>
+    </div>
+  </div>
+
+  @if (isPending) {
+  <div class="tasks-summary"><span><strong>{{ pendingApprovals.length }}</strong> waiting for you</span></div>
+  <section class="approval-list">
+    @for (item of pendingApprovals; track item.ref) {
+    <article class="approval-card">
+      <div class="approval-main">
+        <div class="approval-type"><i class="pi" [class.pi-file-edit]="item.type === 'Contract Approval'" [class.pi-shopping-bag]="item.type === 'Purchase Request'" [class.pi-industry]="item.type === 'Work Order'" [class.pi-replay]="item.type === 'Return / Scrap Request'"></i>{{ item.type }}</div>
+        <h2>{{ item.ref }}</h2>
+        <p>{{ item.title }} <span>·</span> {{ item.detail }}</p>
+      </div>
+      <div class="approval-meta"><span class="meta-label">Requested by</span><strong>{{ item.requestedBy }}</strong></div>
+      <div class="approval-meta"><span class="meta-label">Created</span><strong>{{ item.created }}</strong></div>
+      <div class="approval-meta timer" [class.warning]="item.urgency === 'warning'" [class.overdue]="item.urgency === 'overdue'"><span class="meta-label">Decision timer</span><strong><i class="pi pi-stopwatch"></i>{{ item.timer }}</strong></div>
+      <a class="btn btn-primary review-btn" [routerLink]="['/pending-approvals', item.ref]">Review</a>
+    </article>
+    }
+  </section>
+  } @else {
+  <div class="history-filters"><button class="filter-chip active">All</button><button class="filter-chip">Approved</button><button class="filter-chip">Rejected</button></div>
+  <section class="card history-table-wrap">
+    <table class="history-table">
+      <thead><tr><th>Request</th><th>Decision By</th><th>Decision Date</th><th>Time To Decide</th><th>Result</th><th>Action</th></tr></thead>
+      <tbody>
+        @for (item of approvalHistory; track item.ref) {
+        <tr><td><div class="approval-type"><i class="pi pi-file-edit"></i>{{ item.type }}</div><strong>{{ item.ref }} · {{ item.title }}</strong><small>{{ item.detail }}</small></td><td>{{ item.decidedBy }}</td><td>{{ item.date }}</td><td>{{ item.time }}</td><td><span class="result-pill" [class.rejected]="item.result === 'Rejected'"><i class="pi" [class.pi-check]="item.result === 'Approved'" [class.pi-times]="item.result === 'Rejected'"></i>{{ item.result }}</span></td><td><a class="btn btn-xs btn-ghost" [routerLink]="['/approval-history', item.ref]">View</a></td></tr>
+        }
+      </tbody>
+    </table>
+  </section>
+  }
+</div>

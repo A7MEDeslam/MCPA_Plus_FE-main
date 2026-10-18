@@ -1,0 +1,30 @@
+<div class="searchable-select" [class.open]="open()">
+  <button type="button" class="searchable-select-trigger form-control" (click)="toggle()" [disabled]="disabled">
+    <span class="searchable-select-label" [class.placeholder]="!selectedLabel" [title]="selectedLabel || placeholder">{{
+      selectedLabel || placeholder }}</span>
+    <i class="pi pi-chevron-down searchable-select-chevron"></i>
+  </button>
+
+  @if (open()) {
+  <div class="searchable-select-menu" [style.position]="'fixed'" [style.top.px]="menuTop()" [style.left.px]="menuLeft()"
+    [style.width.px]="menuWidth()" [style.z-index]="9999">
+    <input type="text" class="form-control dropdown-search" [placeholder]="searchPlaceholder" [ngModel]="searchText()"
+      (ngModelChange)="searchText.set($event)" (click)="$event.stopPropagation()" />
+    <div class="dropdown-list">
+      @if (allowEmpty) {
+      <div class="dropdown-item" [class.selected]="value == null || value === '' || value === 0" (click)="select(null)">
+        {{ emptyLabel }}
+      </div>
+      }
+      @for (opt of filteredOptions(); track opt.value) {
+      <div class="dropdown-item" [class.selected]="sameValue(opt.value, value)" (click)="select(opt)">
+        {{ opt.label }}
+      </div>
+      }
+      @if (filteredOptions().length === 0) {
+      <div class="dropdown-empty">No matches found</div>
+      }
+    </div>
+  </div>
+  }
+</div>

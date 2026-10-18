@@ -1,0 +1,63 @@
+<div class="topbar">
+  <button type="button" class="mobile-menu-toggle" (click)="mobileNav.toggle()"
+    [attr.aria-expanded]="mobileNav.open()" aria-label="Toggle navigation menu">
+    <i class="pi pi-bars"></i>
+  </button>
+  <div class="topbar-brand">
+    <img src="assets/geniesys-logo.png" alt="Geniesys logo" class="brand-logo" />
+    <div class="brand-text">
+      <div>Micro Mcpa</div>
+      <small>Procurement &amp; Production</small>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="topbar-notifications">
+      <button type="button" class="topbar-action notification-trigger" title="Notifications"
+        aria-label="Notifications" [attr.aria-expanded]="notificationsOpen" (click)="toggleNotifications()">
+        <i class="pi pi-bell"></i>
+        <span class="notification-trigger-count" *ngIf="unreadNotificationsCount">{{ unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount }}</span>
+      </button>
+      <section class="notification-dropdown" *ngIf="notificationsOpen" aria-label="Notifications">
+        <header class="notification-dropdown-header">
+          <div><strong>Notifications</strong><span *ngIf="unreadNotificationsCount">{{ unreadNotificationsCount }} unread</span></div>
+          <button type="button" class="notification-refresh" title="Refresh notifications" (click)="loadNotifications()"><i class="pi pi-refresh"></i></button>
+        </header>
+        <p class="notification-dropdown-error" *ngIf="notificationError">{{ notificationError }}</p>
+        <div class="notification-dropdown-list" *ngIf="notifications.length; else emptyNotifications">
+          <article class="topbar-notification" *ngFor="let notification of notifications" [class.unread]="!notification.isRead">
+            <div class="topbar-notification-heading">
+              <i class="pi" [ngClass]="notification.type === 'WorkOrderMaterialShortage' ? 'pi-exclamation-triangle' : 'pi-info-circle'"></i>
+              <strong>{{ notification.title }}</strong>
+            </div>
+            <p>{{ notification.message }}</p>
+            <footer>
+              <time>{{ notification.createdAt | date:'short' }}</time>
+              <div class="topbar-notification-actions">
+                <button type="button" *ngIf="notification.workOrderId" (click)="openWorkOrders(notification)">View work orders</button>
+                <button type="button" *ngIf="!notification.isRead" (click)="markNotificationRead(notification)">Mark read</button>
+                <span *ngIf="notification.isRead">Read</span>
+              </div>
+            </footer>
+          </article>
+        </div>
+        <ng-template #emptyNotifications><div class="notification-dropdown-empty">No notifications.</div></ng-template>
+      </section>
+    </div>
+
+    <div class="topbar-status">
+      <i class="pi pi-clock"></i>
+      <span class="topbar-date" id="live-date">{{ liveDateStr }}</span>
+    </div>
+
+    <div class="topbar-profile">
+      <span class="profile-badge" [title]="username">{{ userInitial }}</span>
+      <span class="profile-name">{{ username }}</span>
+    </div>
+
+    <button (click)="logout()" class="btn btn-ghost topbar-logout" title="Logout">
+      <i class="pi pi-power-off"></i>
+      Logout
+    </button>
+  </div>
+</div>

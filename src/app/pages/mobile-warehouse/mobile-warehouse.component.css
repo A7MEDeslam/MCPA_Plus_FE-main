@@ -1,0 +1,7 @@
+/* Custom styles for mobile-warehouse component */
+.tab-btn:hover {
+  background-color: rgba(13, 126, 138, 0.05) !important;
+}
+.serial-checklist label {
+  font-weight: 500;
+}

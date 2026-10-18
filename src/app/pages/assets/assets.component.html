@@ -1,0 +1,200 @@
+<div class="assets-container">
+  <!-- Header -->
+  <div class="assets-header">
+    <h1><i class="pi pi-briefcase"></i> Assets Management</h1>
+    <button *ngIf="canCreateAsset" class="btn btn-primary" (click)="openModal()">
+      <i class="pi pi-plus"></i> New Asset
+    </button>
+  </div>
+
+  <!-- View Toggle -->
+  <div class="view-toggle">
+    <button
+      [class.active]="viewMode() === 'list'"
+      (click)="toggleView('list')"
+      class="btn btn-outline"
+    >
+      <i class="pi pi-list"></i> List View
+    </button>
+    <button
+      [class.active]="viewMode() === 'tree'"
+      (click)="toggleView('tree')"
+      class="btn btn-outline"
+    >
+      <i class="pi pi-sitemap"></i> Tree View
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-section">
+    <div class="filter-group">
+      <label for="search">Search:</label>
+      <input
+        id="search"
+        type="text"
+        [(ngModel)]="searchTerm"
+        (input)="onSearchChange()"
+        placeholder="Search by name or account number..."
+        class="form-control"
+      />
+    </div>
+
+    <div class="filter-group">
+      <label for="level">Level:</label>
+      <select
+        id="level"
+        [(ngModel)]="filterLevel"
+        (change)="onFilterChange()"
+        class="form-control"
+      >
+        <option [value]="undefined">All Levels</option>
+        <option [value]="1">Root</option>
+        <option [value]="2">Group</option>
+        <option [value]="3">Sub-Group</option>
+        <option [value]="4">Item</option>
+        <option [value]="5">Detail</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="assetService.loading()" class="loading">
+    <p>Loading assets...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="assetService.error() && !assetService.loading()" class="alert alert-danger">
+    {{ assetService.error() }}
+  </div>
+
+  <!-- List View -->
+  <div *ngIf="viewMode() === 'list' && !assetService.loading()" class="assets-list">
+    <div *ngIf="pagedAssets().length === 0" class="empty-state">
+      <p>No assets found.</p>
+    </div>
+
+    <table *ngIf="pagedAssets().length > 0" class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Account No</th>
+          <th>Name</th>
+          <th>Level</th>
+          <th>Parent</th>
+          <th>Status</th>
+          <th>Created</th>
+          <!-- <th>Actions</th> -->
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let asset of pagedAssets()">
+          <td>{{ asset.id }}</td>
+          <td><code>{{ asset.accountNo }}</code></td>
+          <td>{{ asset.name }}</td>
+          <td>
+            <span class="badge" [ngClass]="{ 'badge-primary': asset.level === 1, 'badge-info': asset.level > 1 }">
+              {{ getLevelName(asset.level) }}
+            </span>
+          </td>
+          <td>{{ asset.parentName || '—' }}</td>
+          <td>
+            <span *ngIf="asset.isActive" class="badge badge-success">Active</span>
+            <span *ngIf="!asset.isActive" class="badge badge-secondary">Inactive</span>
+          </td>
+          <td>{{ formatDate(asset.createdAt) }}</td>
+          <td>
+            <!-- <div class="actions">
+              <button class="btn btn-sm btn-info" title="View Details" disabled><i class="pi pi-eye"></i></button>
+            </div> -->
+          </td>
+        </tr>
+      </tbody>
+    </table>  
+
+    <!-- Pagination -->
+    <app-pagination
+      *ngIf="pagedAssets().length > 0"
+      [totalItems]="assetService.assets().length"
+      [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()"
+      (pageChange)="pagination.currentPage.set($event)"
+    ></app-pagination>
+  </div>
+
+  <!-- Tree View -->
+  <div *ngIf="viewMode() === 'tree' && !assetService.loading()" class="assets-tree">
+    <div *ngIf="assetService.assetTree().length === 0" class="empty-state">
+      <p>No assets found.</p>
+    </div>
+
+    <div *ngIf="assetService.assetTree().length > 0" class="tree-container">
+      <div *ngFor="let root of assetService.assetTree()" class="tree-node">
+        <app-asset-tree-node [node]="root"></app-asset-tree-node>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Modal -->
+  <div *ngIf="modalOpen()" class="modal-overlay" (click)="closeModalIfOverlay($event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h2><i class="pi pi-plus-circle"></i> Create New Asset</h2>
+        <button class="btn btn-close" (click)="closeModal()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <form (ngSubmit)="saveAsset()">
+          <div class="form-group">
+            <label for="accountNo">Account Number *</label>
+            <input
+              id="accountNo"
+              type="text"
+              [(ngModel)]="form.accountNo"
+              name="accountNo"
+              placeholder="e.g., 11, 111, 1161"
+              class="form-control"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="name">Name *</label>
+            <input
+              id="name"
+              type="text"
+              [(ngModel)]="form.name"
+              name="name"
+              placeholder="e.g., Fixed Asset, Land"
+              class="form-control"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="parentId">Parent Asset (Optional)</label>
+            <select
+              id="parentId"
+              [(ngModel)]="form.parentId"
+              name="parentId"
+              class="form-control"
+            >
+              <option [value]="null">None (Root Asset)</option>
+              <option *ngFor="let parent of availableParents()" [value]="parent.id">
+                {{ parent.name }} ({{ parent.accountNo }})
+              </option>
+            </select>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeModal()">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">
+              Create Asset
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,69 @@
+<div class="page active" id="page-dashboard">
+  <div class="page-header">
+    <h1><i class="pi pi-chart-bar"></i> Operations Dashboard</h1>
+    <p>Live overview of procurement, production, and inventory</p>
+  </div>
+  <div class="stat-grid" id="dash-stats">
+    <div class="stat-card"><div class="stat-label">Open POs</div><div class="stat-value">{{pendPO()}}</div><div class="stat-sub">Pending delivery</div></div>
+    <div class="stat-card amber"><div class="stat-label">Active Work Orders</div><div class="stat-value">{{activeProd()}}</div><div class="stat-sub">In production</div></div>
+    <div class="stat-card green"><div class="stat-label">FG In Stock</div><div class="stat-value">{{totalFG()}}</div><div class="stat-sub">Finished units</div></div>
+    <div class="stat-card red"><div class="stat-label">Low Stock Alerts</div><div class="stat-value">{{lowRM()}}</div><div class="stat-sub">RM below minimum</div></div>
+    <div class="stat-card navy"><div class="stat-label">Total Serials</div><div class="stat-value">{{totalSerials()}}</div><div class="stat-sub">Registered units</div></div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Recent Purchase Orders</span></div>
+      <div id="dash-po-table">
+        <ng-container *ngIf="recentPOs().length; else noPOs">
+          <table><thead><tr><th>PO #</th><th>Items</th><th>Total Qty</th><th>Status</th></tr></thead><tbody>
+            <tr *ngFor="let p of recentPOs()">
+              <td><b>{{p.poNumber}}</b></td>
+              <td>{{p.itemsCount}} Items</td>
+              <td>{{p.totalOrderedQty}}</td>
+              <td><span class="badge" [class]="'badge-' + (p.status==='Received'?'received':p.status==='Partial'?'partial':'pending')">{{p.status}}</span></td>
+            </tr>
+          </tbody></table>
+        </ng-container>
+        <ng-template #noPOs><div class="empty">No POs yet</div></ng-template>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Active Work Orders</span></div>
+      <div id="dash-prod-table">
+        <ng-container *ngIf="activeWOs().length; else noActiveWOs">
+          <table><thead><tr><th>WO #</th><th>Product</th><th>Planned</th><th>Due</th></tr></thead><tbody>
+            <tr *ngFor="let w of activeWOs()">
+              <td><b>{{w.woNumber || w.id}}</b></td>
+              <td>{{w.finishedProductName || w.productName}}</td>
+              <td>{{w.plannedQty || w.qty}}</td>
+              <td>{{w.dueDate ? (w.dueDate | date:'mediumDate') : (w.due ? (w.due | date:'mediumDate') : '-')}}</td>
+            </tr>
+          </tbody></table>
+        </ng-container>
+        <ng-template #noActiveWOs><div class="empty" style="padding:30px">No active orders</div></ng-template>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="pi pi-exclamation-triangle"></i> Low Stock Alerts</span></div>
+    <div id="dash-alerts">
+      <ng-container *ngIf="lowRMs().length; else healthyStock">
+        <div style="padding:12px 20px">
+          <div *ngFor="let i of pagedLowRMs()" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span><b>{{i.name}}</b></span>
+            <span>Stock: <b>{{i.currentStock || 0}}</b> / Min: <b>{{i.minStockLevel ?? i.minStock}}</b> {{i.unit}}</span>
+          </div>
+        </div>
+        <div style="padding:0 20px 16px;">
+          <app-pagination
+            [totalItems]="lowRMs().length"
+            [pageSize]="pagination.pageSize()"
+            [currentPage]="pagination.currentPage()"
+            (pageChange)="pagination.currentPage.set($event)">
+          </app-pagination>
+        </div>
+      </ng-container>
+      <ng-template #healthyStock><div class="empty" style="padding:24px">All stock levels are healthy</div></ng-template>
+    </div>
+  </div>
+</div>

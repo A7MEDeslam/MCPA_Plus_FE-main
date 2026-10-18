@@ -1,0 +1,24 @@
+.tasks-page { max-width: 1280px; margin: 0 auto; }
+.eyebrow { color: #0e8b91; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.tasks-summary { display:flex; justify-content:flex-end; margin: 4px 0 12px; color:#0e858b; }
+.tasks-summary span { padding:10px 16px; border:1px solid #cbe6e5; border-radius:999px; background:#f0fbfa; font-size:13px; }
+.tasks-summary strong { font-size:18px; margin-right:5px; }
+.approval-list { display:grid; gap:12px; }
+.approval-card { display:grid; grid-template-columns:minmax(240px,1.6fr) 1fr 1fr 1fr auto; gap:22px; align-items:center; padding:20px 22px; border:1px solid #dce6eb; border-radius:16px; background:#fff; box-shadow:0 5px 18px rgba(24,57,82,.04); }
+.approval-type { display:flex; align-items:center; gap:8px; color:#0e858b; font-size:13px; font-weight:800; }
+.approval-type i { font-size:16px; }
+.approval-main h2 { margin:9px 0 3px; color:#20384f; font-size:18px; }
+.approval-main p { margin:0; color:#7890a4; font-size:13px; }
+.approval-main p span { color:#b2bec8; }
+.approval-meta { display:flex; flex-direction:column; gap:6px; }
+.meta-label { color:#98a8b5; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+.approval-meta strong { color:#526b7f; font-size:13px; }
+.timer strong { color:#0e858b; }.timer.warning strong { color:#d67b0a; }.timer.overdue strong { color:#d9584d; }
+.timer i { margin-right:5px; }.review-btn { white-space:nowrap; }
+.history-filters { display:flex; gap:8px; margin:8px 0 16px; }
+.filter-chip { padding:9px 17px; border:1px solid transparent; border-radius:999px; color:#657b8e; background:transparent; font:inherit; font-weight:700; cursor:pointer; }
+.filter-chip.active, .filter-chip:hover { color:#0e858b; background:#e8f6f5; border-color:#bde1df; }
+.history-table-wrap { overflow-x:auto; }.history-table { min-width:900px; }
+.history-table td { vertical-align:middle; }.history-table td:first-child { min-width:280px; }.history-table td strong, .history-table td small { display:block; margin-top:5px; }.history-table td strong { color:#20384f; }.history-table td small { color:#7890a4; }
+.result-pill { display:inline-flex; align-items:center; gap:6px; padding:7px 11px; border-radius:999px; color:#0d846e; background:#e5f7ef; font-size:12px; font-weight:800; }.result-pill.rejected { color:#d4584c; background:#fff0ed; }
+@media (max-width: 1000px) { .approval-card { grid-template-columns:1fr 1fr; }.approval-main { grid-column:1 / -1; }.review-btn { justify-self:start; } }

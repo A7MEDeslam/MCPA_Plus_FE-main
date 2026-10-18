@@ -1,0 +1,116 @@
+<div class="checks-report">
+  <header class="page-header">
+    <h2 class="page-title">Checks Report</h2>
+    <p class="page-subtitle">Issued checks grouped by check number, with linked expense requests.</p>
+  </header>
+
+  <div class="filters">
+    <div class="filter-field">
+      <label for="cr-from">From</label>
+      <input id="cr-from" type="date" [(ngModel)]="filter.from" />
+    </div>
+
+    <div class="filter-field">
+      <label for="cr-to">To</label>
+      <input id="cr-to" type="date" [(ngModel)]="filter.to" />
+    </div>
+    <div class="filter-field">
+      <label for="cr-bank">Bank account</label>
+      <app-searchable-select [options]="bankAccountOptions()" [(ngModel)]="filter.bankAccountId" name="bankAccountId"
+        [allowEmpty]="true" emptyLabel="All" placeholder="All" searchPlaceholder="Search bank accounts...">
+      </app-searchable-select>
+    </div>
+
+    <div class="filter-field">
+      <label for="cr-check">Check number</label>
+      <app-searchable-select [options]="checkNumberOptions()" [(ngModel)]="filter.checkNumber" name="checkNumber"
+        [allowEmpty]="true" emptyLabel="All" placeholder="All" searchPlaceholder="Search check numbers...">
+      </app-searchable-select>
+    </div>
+
+    <!-- <div class="filter-field">
+      <label for="cr-status">Status</label>
+      <select id="cr-status" [(ngModel)]="filter.status">
+        <option *ngFor="let s of statusOptions" [ngValue]="s.value">{{ s.label }}</option>
+      </select>
+    </div> -->
+
+    <div class="filter-actions">
+      <button type="button" class="btn-primary" (click)="loadReport()">Search</button>
+      <button type="button" class="btn-ghost" (click)="resetFilter()">Reset</button>
+      <button type="button" class="btn-ghost" (click)="printAll()" [disabled]="!groups().length">
+        <i class="pi pi-print"></i> Print all
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="loading()" class="state-msg">Loading…</div>
+  <div *ngIf="error()" class="state-msg is-error">{{ error() }}</div>
+
+  <div *ngIf="!loading() && !error()">
+    <div class="summary-bar">
+      <span><strong>{{ groups().length }}</strong> checks</span>
+      <span class="summary-total">{{ grandTotal() | number: '1.2-2' }}</span>
+    </div>
+
+    <div class="ledger">
+      <article class="check-card" *ngFor="let group of groups()"
+        [class.print-hide]="printTarget() && printTarget() !== group.checkNumber">
+        <div class="check-stub" role="button" tabindex="0" (click)="toggleExpand(group.checkNumber)"
+          (keydown.enter)="toggleExpand(group.checkNumber)" [attr.aria-expanded]="isExpanded(group.checkNumber)">
+          <span class="stub-number">№ {{ group.checkNumber }}</span>
+          <span class="stub-bank">{{ group.bankName }}</span>
+          <span class="stub-count">{{ group.requestsCount }} request{{ group.requestsCount === 1 ? '' : 's' }}</span>
+          <span class="stub-amount">{{ group.totalAmount | number: '1.2-2' }}</span>
+          <button type="button" class="print-btn" title="Print this check"
+            (click)="printOne(group.checkNumber, $event)">
+            <i class="pi pi-print"></i>
+          </button>
+          <span class="stub-chevron pi" [class.pi-chevron-down]="!isExpanded(group.checkNumber)"
+            [class.pi-chevron-up]="isExpanded(group.checkNumber)" aria-hidden="true"></span>
+        </div>
+
+        <div class="perforation" *ngIf="isExpanded(group.checkNumber)" aria-hidden="true"></div>
+
+        <div class="check-detail" *ngIf="isExpanded(group.checkNumber)">
+          <div class="request-row" *ngFor="let req of group.requests">
+            <div class="request-line">
+              <span class="request-number">{{ req.requestNumber }}</span>
+              <span class="request-payee">{{ req.payeeName }}</span>
+              <span class="request-amount">{{ req.amount | number: '1.2-2' }}</span>
+            </div>
+            <div class="request-meta">
+              <span>Issued {{ req.issueDate | date: 'yyyy-MM-dd' }}</span>
+            </div>
+            <p class="request-notes" *ngIf="req.notes">{{ req.notes }}</p>
+
+            <table class="expenses-table" *ngIf="req.expenses?.length">
+              <thead>
+                <tr>
+                  <th>Doc #</th>
+                  <th>Employee</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th>Date</th>
+                  <th class="col-amount">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let exp of req.expenses">
+                  <td>{{ exp.documentNumber }}</td>
+                  <td>{{ exp.employeeName }}</td>
+                  <td>{{ exp.categoryName }}</td>
+                  <td>{{ exp.description }}</td>
+                  <td>{{ exp.expenseDate | date: 'yyyy-MM-dd' }}</td>
+                  <td class="col-amount">{{ exp.amount | number: '1.2-2' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <p *ngIf="!groups().length" class="state-msg">No checks match these filters.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,472 @@
+<div class="expenses">
+  <div class="page-header">
+    <div>
+      <h1>Expense Management</h1>
+      <p class="subtitle">{{ total }} expense reports</p>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn-secondary" (click)="openCategoriesModal()">
+        <i class="pi pi-tags"></i>
+        Manage Categories
+      </button>
+      <button class="btn-primary" (click)="openCreateModal()">
+        <i class="pi pi-plus"></i>
+        New Expense Report
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="error" class="alert-error">{{ error }}</div>
+
+  <!-- Summary cards -->
+  <div class="summary-cards">
+    <div class="summary-card card-blue">
+      <div class="card-label">Total Submitted</div>
+      <div class="card-value">{{ total }}</div>
+      <div class="card-hint">Reports</div>
+    </div>
+    <div class="summary-card card-amber">
+      <div class="card-label">Pending Approval</div>
+      <div class="card-value">{{ pendingCount }}</div>
+      <div class="card-hint">{{ pendingAmount | number }}</div>
+    </div>
+    <div class="summary-card card-green">
+      <div class="card-label">Approved</div>
+      <div class="card-value">{{ approvedCount }}</div>
+      <div class="card-hint">Awaiting payment</div>
+    </div>
+    <div class="summary-card card-violet">
+      <div class="card-label">Assigned To Check</div>
+      <div class="card-value">{{ assignedToCheckCount }}</div>
+      <div class="card-hint">{{ assignedToCheckAmount | number }}</div>
+    </div>
+  </div>
+
+  <!-- Filters + table -->
+  <div class="table-card">
+    <div class="table-toolbar">
+      <div class="search-box">
+        <i class="pi pi-search"></i>
+        <input type="text" placeholder="Search expense..." [(ngModel)]="searchTerm" />
+      </div>
+      <div class="filter-pills">
+        <button [class.active]="activeFilter === 'All'" (click)="setFilter('All')">All</button>
+        <button [class.active]="activeFilter === 'PendingApproval'" (click)="setFilter('PendingApproval')">
+          Pending Approval
+        </button>
+        <button [class.active]="activeFilter === 'Approved'" (click)="setFilter('Approved')">
+          Approved
+        </button>
+        <button [class.active]="activeFilter === 'AssignedToCheck'" (click)="setFilter('AssignedToCheck')">
+          Assigned To Check
+        </button>
+        <button [class.active]="activeFilter === 'Rejected'" (click)="setFilter('Rejected')">
+          Rejected
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>DOC #</th>
+            <th>EMPLOYEE</th>
+            <th>DEPT</th>
+            <th>CATEGORY</th>
+            <th>DESCRIPTION</th>
+            <th>AMOUNT</th>
+            <th>DATE</th>
+            <th>STATUS</th>
+            <th>GL ACCT</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let exp of filteredExpenses">
+            <td class="mono">{{ exp.documentNumber || '—' }}</td>
+            <td>{{ exp.employeeName || '—' }}</td>
+            <td>—</td>
+            <td><span class="tag">{{ exp.categoryName }}</span></td>
+            <td class="desc">{{ exp.description }}</td>
+            <td class="amount">{{ exp.amount | number }} {{ exp.currency }}</td>
+            <td>{{ exp.date | date: 'yyyy-MM-dd' }}</td>
+            <td>
+              <span class="status-badge" [ngClass]="statusClass(exp.status)">
+                {{ statusLabel(exp.status) }}
+              </span>
+            </td>
+            <td>{{ exp.accountCode || '—' }}</td>
+            <td class="actions">
+              <button class="icon-btn" title="View" (click)="viewDetails(exp)">
+                <i class="pi pi-eye"></i>
+              </button>
+              <button class="icon-btn" title="Edit" (click)="openEdit(exp)">
+                <i class="pi pi-pencil"></i>
+              </button>
+              <button *ngIf="canApprove && exp.status === 'PendingApproval'" class="icon-btn approve" title="Approve"
+                (click)="approve(exp)">
+                <i class="pi pi-check"></i>
+              </button>
+              <button *ngIf="canApprove && exp.status === 'PendingApproval'" class="icon-btn reject" title="Reject"
+                (click)="openReject(exp)">
+                <i class="pi pi-times"></i>
+              </button>
+              <button class="icon-btn" title="Delete" (click)="remove(exp)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </td>
+          </tr>
+          <!-- <tr *ngIf="!loading && filteredExpenses.length === 0">
+            <td colspan="10" class="empty">No expense reports match this view.</td>
+          </tr>
+          <tr *ngIf="loading">
+            <td colspan="10" class="empty">Loading...</td>
+          </tr> -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Create modal -->
+  <div class="modal-backdrop" *ngIf="showCreateModal" (click)="closeCreateModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>New Expense Report</h2>
+        <button class="modal-close" (click)="closeCreateModal()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+
+
+          <div class="form-field">
+            <label>Expense Date</label>
+            <input type="date" [(ngModel)]="form.expenseDate" />
+          </div>
+          <div class="form-field">
+            <label>Amount</label>
+            <input type="number" min="0" step="0.01" [(ngModel)]="form.amount" placeholder="0.00" />
+          </div>
+          <div class="form-field">
+            <label>Currency</label>
+            <input type="text" [(ngModel)]="form.currency" placeholder="USD" />
+          </div>
+          <div class="form-field">
+            <label>Category</label>
+            <app-searchable-select [options]="categoryOptions" [(ngModel)]="form.categoryId"
+              placeholder="Select category" searchPlaceholder="Search categories...">
+            </app-searchable-select>
+          </div>
+
+          <div class="form-field">
+            <label>GL Account</label>
+            <app-searchable-select [options]="glAccountOptions" [(ngModel)]="form.accountId"
+              placeholder="Select GL account" searchPlaceholder="Search accounts...">
+            </app-searchable-select>
+          </div>
+
+          <div class="form-field span-3">
+            <label>Description / Purpose</label>
+            <textarea rows="3" [(ngModel)]="form.description"
+              placeholder="Describe the business purpose of this expense..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeCreateModal()">Cancel</button>
+        <button class="btn-primary" [disabled]="!isFormValid || saving" (click)="submitCreate()">
+          {{ saving ? 'Submitting...' : 'Submit for Approval' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="modal-backdrop" *ngIf="showRejectModal" (click)="showRejectModal = false">
+
+    <div class="modal" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <h2>Reject Expense Report</h2>
+
+        <button class="modal-close" (click)="showRejectModal = false">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="form-field">
+          <label>Reason for rejection</label>
+
+          <textarea rows="4" [(ngModel)]="rejectReason" placeholder="Enter rejection reason...">
+          </textarea>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button class="btn-secondary" (click)="showRejectModal = false">
+          Cancel
+        </button>
+
+        <button class="btn-primary" [disabled]="!rejectReason.trim()" (click)="confirmReject()">
+          Reject
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+</div>
+<div class="modal-backdrop" *ngIf="showDetailsModal" (click)="closeDetails()">
+  <div class="modal" (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <h2>Expense Report Details</h2>
+
+      <button class="modal-close" (click)="closeDetails()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <div class="modal-body" *ngIf="selectedExpense">
+
+      <div class="details-grid">
+
+        <div>
+          <label>Document #</label>
+          <p>{{ selectedExpense.documentNumber || '—' }}</p>
+        </div>
+
+        <div>
+          <label>Employee</label>
+          <p>{{ selectedExpense.employeeName || '—' }}</p>
+        </div>
+
+        <div>
+          <label>Category</label>
+          <p>{{ selectedExpense.categoryName }}</p>
+        </div>
+
+        <div>
+          <label>Amount</label>
+          <p>
+            {{ selectedExpense.amount | number }}
+            {{ selectedExpense.currency }}
+          </p>
+        </div>
+
+        <div>
+          <label>Date</label>
+          <p>{{ selectedExpense.date | date:'yyyy-MM-dd' }}</p>
+        </div>
+
+        <div>
+          <label>Status</label>
+
+          <span class="status-badge" [ngClass]="statusClass(selectedExpense.status)">
+            {{ statusLabel(selectedExpense.status) }}
+          </span>
+        </div>
+
+        <div>
+          <label>GL Account</label>
+          <p>{{ selectedExpense.accountCode || '—' }}</p>
+        </div>
+
+        <div class="span-2">
+          <label>Description</label>
+          <p>{{ selectedExpense.description }}</p>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-primary" (click)="closeDetails()">
+        Close
+      </button>
+    </div>
+
+  </div>
+</div>
+<div class="modal-backdrop" *ngIf="showDeleteModal" (click)="closeDeleteModal()">
+  <div class="modal delete-modal" (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <h2>Delete Expense Report</h2>
+
+      <button class="modal-close" (click)="closeDeleteModal()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="delete-icon">
+        <i class="pi pi-trash"></i>
+      </div>
+
+      <p class="delete-title">
+        Are you sure you want to delete this expense report?
+      </p>
+
+      <p class="delete-text" *ngIf="expenseToDelete">
+        <strong>{{ expenseToDelete.documentNumber || 'No Document #' }}</strong>
+      </p>
+
+      <p class="delete-text">
+        This action cannot be undone.
+      </p>
+
+    </div>
+
+    <div class="modal-footer">
+
+      <button class="btn-secondary" (click)="closeDeleteModal()">
+        Cancel
+      </button>
+
+      <button class="btn-danger" (click)="confirmDelete()">
+        Delete
+      </button>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-backdrop" *ngIf="showEditModal" (click)="closeEditModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Edit Expense Report</h2>
+      <button class="modal-close" (click)="closeEditModal()"><i class="pi pi-times"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Expense Date</label>
+          <input type="date" [(ngModel)]="editForm.expenseDate" />
+        </div>
+        <div class="form-field">
+          <label>Amount</label>
+          <input type="number" min="0" step="0.01" [(ngModel)]="editForm.amount" placeholder="0.00" />
+        </div>
+        <div class="form-field">
+          <label>Currency</label>
+          <input type="text" [(ngModel)]="editForm.currency" placeholder="USD" />
+        </div>
+
+  <div class="form-field">
+    <label>Category</label>
+    <app-searchable-select [options]="categoryOptions" [(ngModel)]="editForm.categoryId" placeholder="Select category"
+      searchPlaceholder="Search categories...">
+    </app-searchable-select>
+  </div>
+  
+  <div class="form-field">
+    <label>GL Account</label>
+    <app-searchable-select [options]="glAccountOptions" [(ngModel)]="editForm.accountId" placeholder="Select GL account"
+      searchPlaceholder="Search accounts...">
+    </app-searchable-select>
+  </div>
+
+        <div class="form-field span-3">
+          <label>Description / Purpose</label>
+          <textarea rows="3" [(ngModel)]="editForm.description"
+            placeholder="Describe the business purpose of this expense..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeEditModal()">Cancel</button>
+      <button class="btn-primary" [disabled]="!isEditFormValid || editSaving" (click)="submitEdit()">
+        {{ editSaving ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Categories management modal -->
+<div class="modal-backdrop" *ngIf="showCategoriesModal" (click)="closeCategoriesModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Manage Expense Categories</h2>
+      <button class="modal-close" (click)="closeCategoriesModal()"><i class="pi pi-times"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <div *ngIf="categoryError" class="alert-error">{{ categoryError }}</div>
+
+      <div class="category-add-row">
+        <div class="category-add-field">
+          <label class="category-label">New Category Name</label>
+      <input type="text" class="category-input" [value]="newCategoryName" (input)="onCategoryNameInput($event)"
+        placeholder="e.g. Travel" />
+        </div>
+        <button class="btn-primary category-add-btn" [disabled]="!newCategoryName.trim() || categorySaving"
+          (click)="submitNewCategory()">
+          <i class="pi" [ngClass]="categorySaving ? 'pi-spin pi-spinner' : 'pi-plus'"></i>
+          {{ categorySaving ? 'Adding...' : 'Add' }}
+        </button>
+      </div>
+
+      <table style="width:100%; margin-top:16px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Name</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let cat of categories">
+            <td>{{ cat.name }}</td>
+            <td style="text-align:right;">
+              <button class="icon-btn" title="Delete" (click)="openDeleteCategory(cat)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="categories.length === 0">
+            <td colspan="2" class="empty">No categories yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeCategoriesModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete category confirmation -->
+<div class="modal-backdrop" *ngIf="showDeleteCategoryModal" (click)="cancelDeleteCategory()">
+  <div class="modal delete-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Delete Category</h2>
+      <button class="modal-close" (click)="cancelDeleteCategory()"><i class="pi pi-times"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <div class="delete-icon"><i class="pi pi-trash"></i></div>
+      <p class="delete-title">Are you sure you want to delete this category?</p>
+      <p class="delete-text" *ngIf="categoryToDelete"><strong>{{ categoryToDelete.name }}</strong></p>
+      <p class="delete-text">This action cannot be undone.</p>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="cancelDeleteCategory()">Cancel</button>
+      <button class="btn-danger" (click)="confirmDeleteCategory()">Delete</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,911 @@
+<div class="page active" id="page-consume">
+
+  <!-- ===================================================== -->
+  <!-- Page Header -->
+  <!-- ===================================================== -->
+
+  <div class="page-header">
+    <h1>
+      <i class="pi pi-sitemap" style="margin-right: 8px"></i>
+
+      BOM &amp; Material Consumption
+    </h1>
+
+    <p>
+      Define Bill of Materials and post material
+      consumption for production
+    </p>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- Main Tabs -->
+  <!-- ===================================================== -->
+
+  <div class="tabs" id="bom-tabs">
+
+    <div class="tab" [class.active]="bomTab === 'def'" (click)="
+        bomTab = 'def';
+        pagination.currentPage.set(1)
+      ">
+      BOM Definitions
+    </div>
+<!-- 
+    <div class="tab" [class.active]="bomTab === 'post'" (click)="
+        bomTab = 'post';
+        pagination.currentPage.set(1)
+      ">
+      Post Consumption
+    </div> -->
+
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- BOM Definitions Tab -->
+  <!-- ===================================================== -->
+
+  @if (bomTab === 'def') {
+
+  <div id="bom-def-pane" class="tab-pane active">
+
+    <!-- Finished / Semi-Finished Tabs -->
+
+    <div class="sub-tabs" style="
+          display: flex;
+          gap: 8px;
+          margin-bottom: 12px;
+          border-bottom: 1px solid #e2e8f0;
+          padding-bottom: 4px;
+        ">
+
+      <button type="button" class="btn" [ngClass]="
+            definitionTab === 'finished'
+              ? 'btn-primary'
+              : 'btn-ghost'
+          " (click)="switchDefTab('finished')">
+        Finished Product
+      </button>
+
+      <button type="button" class="btn" [ngClass]="
+            definitionTab === 'semiFinished'
+              ? 'btn-primary'
+              : 'btn-ghost'
+          " (click)="switchDefTab('semiFinished')">
+        Semi-Finished Product
+      </button>
+
+    </div>
+
+    <div class="card">
+
+      <!-- Card Header -->
+
+      <div class="card-header flex-between">
+
+        <span class="card-title">
+          {{
+          definitionTab === 'finished'
+          ? 'Bill of Materials'
+          : 'Semi-Finished Structural Rules'
+          }}
+        </span>
+
+        <button *ngIf="canManageBom" type="button" class="btn btn-primary btn-sm" (click)="openModal()">
+          + Add BOM
+        </button>
+
+      </div>
+
+      <!-- Product Selection -->
+
+      <div style="padding: 16px 16px 0">
+
+        <div class="form-grid" style="
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+            ">
+
+          <div class="form-group">
+
+            <label>
+              {{
+              definitionTab === 'finished'
+              ? 'Finished Product'
+              : 'Semi-Finished Product'
+              }}
+            </label>
+
+            <!-- Finished Product -->
+
+            <select *ngIf="definitionTab === 'finished'" class="form-control" [(ngModel)]="bomProductId"
+              (change)="loadBomEntries()">
+
+              <option [ngValue]="0">
+                -- Select Product --
+              </option>
+
+              @for (
+              product of masterData.PRODUCTS();
+              track product.id
+              ) {
+              <option [ngValue]="product.id">
+                {{ product.name }}
+              </option>
+              }
+
+            </select>
+
+            <!-- Semi-Finished Product -->
+
+            <select *ngIf="definitionTab === 'semiFinished'" class="form-control" [(ngModel)]="bomSemiFinishedId"
+              (change)="loadBomEntries()">
+
+              <option [ngValue]="0">
+                -- Select Semi-Finished --
+              </option>
+
+              @for (
+              semi of masterData.SEMI_ITEMS();
+              track semi.id
+              ) {
+              <option [ngValue]="semi.id">
+                {{ semi.name }}
+              </option>
+              }
+
+            </select>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ================================================= -->
+      <!-- BOM Entries Table -->
+      <!-- ================================================= -->
+
+      <div style="overflow-x: auto">
+
+        <table class="bom-table">
+
+          <thead>
+
+            <tr>
+
+              <th>
+                Code
+              </th>
+              <th>
+                Product
+              </th>
+
+              <th>
+                {{
+                definitionTab === 'finished'
+                ? 'Raw Material / Subcomponent'
+                : 'Raw Material'
+                }}
+              </th>
+
+              <th>
+                Qty / Unit
+              </th>
+
+              <th>
+                Unit
+              </th>
+
+              <th>
+                Action By
+              </th>
+
+              <th>
+                Action At
+              </th>
+
+              <th *ngIf="canEditDeleteBom" style="text-align: center">
+                Actions
+              </th>
+
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            @if (bomLoading()) {
+            <tr>
+              <td [attr.colspan]="canEditDeleteBom ? 8 : 7" class="empty">
+                <span class="spinner"></span> Loading...
+              </td>
+            </tr>
+            } @else if (pagedBomEntries().length) {
+
+            @for (
+            bom of pagedBomEntries();
+            track bom.id
+            ) {
+
+            <tr>
+
+              <!-- Product Name -->
+
+              <td>
+                {{
+                bom.rawMaterialCode
+                }}
+              </td>
+              <!-- Product Name -->
+
+              <td>
+                {{
+                definitionTab === 'finished'
+                ? bom.finishedProductName
+                : (bom.semiFinishedName || '--')
+                }}
+              </td>
+
+              <!-- Component -->
+
+              <td>
+
+                @if (editingEntry?.id === bom.id) {
+
+                <!-- Edit Semi-Finished Component -->
+
+                <div *ngIf="
+                            definitionTab === 'finished' &&
+                            editingEntry!.type === 'semi'
+                          ">
+                  <app-searchable-select [(ngModel)]="
+                              editingEntry!.semiFinishedId
+                            " [options]="semiFinishedOptions()" placeholder="Select Semi-Finished...">
+                  </app-searchable-select>
+                </div>
+
+                <!-- Edit Raw Material -->
+
+                <div *ngIf="
+                            editingEntry!.type === 'raw'
+                          ">
+                  <app-searchable-select [(ngModel)]="
+                              editingEntry!.rawMaterialId
+                            " [options]="rawMaterialOptions()" placeholder="Select Raw Material...">
+                  </app-searchable-select>
+                </div>
+
+                } @else {
+
+                {{
+                bom.rawMaterialName ||
+                bom.semiFinishedName ||
+                '--'
+                }}
+
+                }
+
+              </td>
+
+              <!-- Quantity -->
+
+              <td>
+
+                @if (editingEntry?.id === bom.id) {
+
+                <input class="form-control" style="
+                            width: 90px;
+                            margin: 0;
+                            padding: 4px 8px;
+                          " type="number" min="0.01" step="0.01" [(ngModel)]="editingEntry!.qty" />
+
+                } @else {
+
+                {{
+                bom.qtyPerUnit ??
+                bom.semiFinishedQtyPerUnit
+                }}
+
+                }
+
+              </td>
+
+              <!-- Unit -->
+
+              <td>
+                {{ bom.unit || 'PCS' }}
+              </td>
+
+              <!-- Action By -->
+
+              <td>
+                {{ bom.actionByName || '-' }}
+              </td>
+
+              <!-- Action At -->
+
+              <td>
+                {{
+                bom.actionAt
+                ? (bom.actionAt | date: 'short')
+                : '-'
+                }}
+              </td>
+
+              <!-- Actions -->
+
+              @if (canEditDeleteBom) {
+
+              <td style="
+                          text-align: center;
+                          white-space: nowrap;
+                        ">
+
+                @if (
+                editingEntry?.id === bom.id
+                ) {
+
+                <button type="button" class="btn btn-primary btn-sm" (click)="saveEdit(bom)">
+                  Save
+                </button>
+
+                <button type="button" class="btn btn-ghost btn-sm" style="margin-left: 4px" (click)="cancelEdit()">
+                  Cancel
+                </button>
+
+                } @else {
+
+                <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit(bom)">
+                  <i class="pi pi-pencil"></i>
+
+                </button>
+
+                <button type="button" class="btn btn-ghost btn-sm" style="
+                              color: var(
+                                --danger,
+                                #e53e3e
+                              );
+                              margin-left: 4px;
+                            " (click)="deleteEntry(bom)">
+                  <i class="pi pi-trash"></i>
+
+                </button>
+
+                }
+
+              </td>
+
+              }
+
+            </tr>
+
+            }
+
+            } @else {
+
+            <tr>
+
+              <td [attr.colspan]="
+                      canEditDeleteBom ? 8 : 7
+                    " class="empty">
+                No BOM entries for selected product
+                context.
+              </td>
+
+            </tr>
+
+            }
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+      <!-- Pagination -->
+@if (!bomLoading()) {
+      <app-pagination [totalItems]="bomEntries().length" [pageSize]="pagination.pageSize()" [currentPage]="
+            pagination.currentPage()
+          " (pageChange)="
+            pagination.currentPage.set($event)
+          ">
+      </app-pagination>
+    }
+    </div>
+
+  </div>
+
+  }
+
+  <!-- ===================================================== -->
+  <!-- Post Consumption Tab -->
+  <!-- ===================================================== -->
+
+  @if (bomTab === 'post') {
+
+  <div id="bom-post-pane" class="tab-pane active">
+
+    <div class="card">
+
+      <div class="card-header">
+        <span class="card-title">
+          Post Material Consumption
+        </span>
+      </div>
+
+      <div class="card-body">
+
+        <div class="alert alert-info">
+          Select a Work Order to auto-calculate BOM
+          consumption based on produced quantity.
+        </div>
+
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr">
+
+          <!-- Work Order -->
+
+          <div class="form-group">
+
+            <label>
+              Work Order
+            </label>
+
+            <select class="form-control" [(ngModel)]="consumeForm.woId" (change)="onWorkOrderChange()">
+
+              <option [ngValue]="0">
+                -- Select WO --
+              </option>
+
+              @for (
+              workOrder of activeProdOrders();
+              track workOrder.id
+              ) {
+
+              <option [ngValue]="workOrder.id">
+                {{
+                workOrder.woNumber ||
+                workOrder.id
+                }}
+                -
+                {{ workOrder.finishedProductName }}
+              </option>
+
+              }
+
+            </select>
+
+          </div>
+
+          <!-- Produced Quantity -->
+
+          <div class="form-group">
+
+            <label>
+              Qty Produced
+            </label>
+
+            <input class="form-control" type="number" min="1" placeholder="e.g. 50" [(ngModel)]="consumeForm.qty"
+              (input)="loadConsumeItems()" />
+
+          </div>
+
+          <!-- Production Date -->
+
+          <div class="form-group">
+
+            <label>
+              Production Date
+            </label>
+
+            <input class="form-control" type="date" [(ngModel)]="
+                  consumeForm.productionDate
+                " />
+
+          </div>
+
+        </div>
+
+        <!-- Consumption Preview -->
+
+        <div id="consume-preview" style="margin-top: 18px">
+
+          @if (previewError) {
+
+          <div class="alert alert-error">
+            {{ previewError }}
+          </div>
+
+          }
+
+          @if (consumePreview.length) {
+          @if (previewLoading()) {
+          <div class="loading-box">
+            <span class="spinner"></span> Calculating consumption...
+          </div>
+          }
+          @if (!previewLoading() && consumePreview.length) {
+          <table class="bom-table">
+
+            <thead>
+
+              <tr>
+
+                <th>
+                  Material
+                </th>
+
+                <th>
+                  Required
+                </th>
+
+                <th>
+                  In Stock
+                </th>
+
+                <th>
+                  Sufficient?
+                </th>
+
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              @for (
+              item of consumePreview;
+              track $index
+              ) {
+
+              <tr>
+
+                <td>
+                  {{ item.name }}
+                </td>
+
+                <td>
+                  {{ item.need }}
+                  {{ item.unit }}
+                </td>
+
+                <td>
+                  {{ item.have }}
+                </td>
+
+                <td>
+
+                  <span class="badge" [ngClass]="
+                            item.ok
+                              ? 'badge-received'
+                              : 'badge-cancelled'
+                          ">
+                    {{
+                    item.ok
+                    ? 'OK'
+                    : 'Insufficient'
+                    }}
+                  </span>
+
+                </td>
+
+              </tr>
+
+              }
+
+            </tbody>
+
+          </table>
+          }
+          }
+
+        </div>
+
+        <!-- Consumption Submit -->
+
+        <div class="form-actions">
+
+        <button *ngIf="canCompleteWorkOrder" type="button" class="btn btn-amber" [disabled]="posting()"
+          (click)="postConsumption()">
+          @if (posting()) {
+          <span class="spinner"></span> Posting...
+          } @else {
+          Post Consumption &amp; Generate Serials
+          }
+        </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  }
+
+</div>
+
+<!-- ======================================================= -->
+<!-- Add BOM Modal -->
+<!-- ======================================================= -->
+
+@if (modalOpen) {
+
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+
+  <div class="modal" style="
+        max-width: 760px;
+        width: 100%;
+      ">
+
+    <!-- Modal Header -->
+
+    <div class="modal-header">
+
+      <span class="modal-title">
+        Add
+        {{
+        definitionTab === 'finished'
+        ? 'BOM Entries'
+        : 'Semi-Finished Composition'
+        }}
+      </span>
+
+      <button type="button" class="modal-close" (click)="modalOpen = false">
+        <i class="pi pi-times"></i>
+      </button>
+
+    </div>
+
+    <!-- Modal Body -->
+
+    <div class="modal-body">
+
+      <!-- Selected Product -->
+
+      <div class="form-group" style="margin-bottom: 20px">
+
+        <label>
+          {{
+          definitionTab === 'finished'
+          ? 'Finished Product'
+          : 'Semi-Finished Product'
+          }}
+        </label>
+
+        <!-- Selected Finished Product -->
+
+        <select *ngIf="definitionTab === 'finished'" class="form-control" [(ngModel)]="
+              bomForm.finishedProductId
+            " disabled>
+
+          @for (
+          product of masterData.PRODUCTS();
+          track product.id
+          ) {
+
+          <option [ngValue]="product.id">
+            {{ product.name }}
+          </option>
+
+          }
+
+        </select>
+
+        <!-- Selected Semi-Finished Product -->
+
+        <select *ngIf="
+              definitionTab === 'semiFinished'
+            " class="form-control" [(ngModel)]="
+              bomForm.semiFinishedId
+            " disabled>
+
+          @for (
+          semi of masterData.SEMI_ITEMS();
+          track semi.id
+          ) {
+
+          <option [ngValue]="semi.id">
+            {{ semi.name }}
+          </option>
+
+          }
+
+        </select>
+
+      </div>
+
+      <!-- Components Header -->
+
+      <div style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+          ">
+
+        <label style="
+              margin: 0;
+              font-weight: 600;
+            ">
+          Components
+        </label>
+
+        <button type="button" class="btn btn-ghost btn-sm" (click)="addLine()">
+          + Add Row
+        </button>
+
+      </div>
+
+      <!-- Components Table -->
+
+      <div style="
+            border: 1px solid
+              var(--border-color, #e2e8f0);
+            border-radius: 8px;
+            overflow: visible;
+          ">
+
+        <table style="
+              margin: 0;
+              width: 100%;
+            ">
+
+          <thead>
+
+            <tr>
+
+              <!-- Type only appears for Finished Product -->
+
+              <th *ngIf="
+                    definitionTab === 'finished'
+                  " style="width: 24%">
+                Type
+              </th>
+
+              <th style="width: 46%">
+                Component
+              </th>
+
+              <th style="width: 20%">
+                Qty per Unit
+              </th>
+
+              <th style="
+                    width: 10%;
+                    text-align: center;
+                  ">
+                Remove
+              </th>
+
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            @for (
+            line of bomForm.lines;
+            track $index
+            ) {
+
+            <tr>
+
+              <!-- Component Type -->
+
+              <td *ngIf="
+                      definitionTab === 'finished'
+                    " style="padding: 6px 8px">
+
+                <select class="form-control" style="margin: 0" [(ngModel)]="line.type" (ngModelChange)="
+                        onLineTypeChange(line)
+                      ">
+
+                  <option value="raw">
+                    Raw Material
+                  </option>
+
+                  <option value="semi">
+                    Semi-Finished
+                  </option>
+
+                </select>
+
+              </td>
+
+              <!-- Component Selection -->
+
+              <td style="padding: 6px 8px">
+
+
+
+                <app-searchable-select *ngIf="
+                        definitionTab ===
+                          'semiFinished' ||
+                        line.type === 'raw'
+                      " [(ngModel)]="
+                        line.rawMaterialId
+                      " [options]="
+                        rawMaterialOptions()
+                      " placeholder="Select Raw Material...">
+                </app-searchable-select>
+
+
+
+                <app-searchable-select *ngIf="
+                        definitionTab ===
+                          'finished' &&
+                        line.type === 'semi'
+                      " [(ngModel)]="
+                        line.semiFinishedId
+                      " [options]="
+                        semiFinishedOptions()
+                      " placeholder="Select Semi-Finished...">
+                </app-searchable-select>
+
+              </td>
+
+              <!-- Quantity -->
+
+              <td style="padding: 6px 8px">
+
+                <input class="form-control" style="margin: 0" type="number" min="0.01" step="0.01" placeholder="0.00"
+                  [(ngModel)]="line.qty" />
+
+              </td>
+
+              <!-- Remove Line -->
+
+              <td style="
+                      text-align: center;
+                      padding: 6px 4px;
+                    ">
+
+                <button type="button" class="btn btn-ghost btn-sm" style="
+                        color: var(
+                          --danger,
+                          #e53e3e
+                        );
+                      " [disabled]="
+                        bomForm.lines.length === 1
+                      " (click)="removeLine($index)">
+                  <i class="pi pi-times"></i>
+                </button>
+
+              </td>
+
+            </tr>
+
+            }
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+
+
+    </div>
+
+    <!-- Modal Footer -->
+
+    <div class="modal-footer">
+
+      <button type="button" class="btn btn-ghost" (click)="modalOpen = false">
+        Cancel
+      </button>
+      <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveBOM()">
+        @if (saving()) {
+        <span class="spinner"></span> Saving...
+        } @else {
+        Save BOM
+        }
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+}

@@ -1,0 +1,89 @@
+<div class="login-wrapper">
+  <div class="login-container">
+    <!-- Brand Title -->
+    <div class="brand-header">
+      <div class="brand-header-top">
+        <img src="assets/geniesys-logo.png" alt="Geniesys logo" class="brand-logo" />
+        <div class="brand-title-block">
+          <h1 class="brand-name">Micro Mcpa</h1>
+          <p class="brand-subtitle">Procurement &amp; Production Portal</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Card -->
+    <div class="login-card glass-panel">
+      <h2 class="card-title">Sign In</h2>
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+        <!-- Email Input -->
+        <div class="form-field">
+          <label for="email" class="field-label">Email Address</label>
+          <div class="input-wrapper">
+            <i class="pi pi-envelope input-icon"></i>
+            <input
+              id="email"
+              type="email"
+              formControlName="email"
+              placeholder="name@company.com"
+              class="login-control"
+              [class.has-error]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched"
+            />
+          </div>
+          @if (getFieldError('email')) {
+            <span class="field-error-msg"><i class="pi pi-exclamation-circle"></i> {{ getFieldError('email') }}</span>
+          }
+        </div>
+
+       
+        <!-- Password Input -->
+        <div class="form-field">
+          <label for="password" class="field-label">Password</label>
+          <div class="input-wrapper">
+            <i class="pi pi-lock input-icon"></i>
+            <input id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password" placeholder="••••••••"
+              class="login-control"
+              [class.has-error]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched" />
+            <button type="button" class="password-toggle-btn" (click)="showPassword = !showPassword"
+              [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" tabindex="-1">
+              <i class="pi" [ngClass]="showPassword ? 'pi-eye-slash' : 'pi-eye'"></i>
+            </button>
+          </div>
+          @if (getFieldError('password')) {
+          <span class="field-error-msg"><i class="pi pi-exclamation-circle"></i> {{ getFieldError('password') }}</span>
+          }
+        </div>
+
+        <!-- Error Message Banner -->
+        @if (errorMessage) {
+          <div class="login-alert alert-danger">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>{{ errorMessage }}</span>
+          </div>
+        }
+
+        <!-- Submit Button -->
+        <button type="submit" [disabled]="isLoading" class="btn-login-submit">
+          @if (!isLoading) {
+            <span>Continue <i class="pi pi-arrow-right" style="margin-left: 6px;"></i></span>
+          } @else {
+            <span class="spinner-loading">
+              <i class="pi pi-spin pi-spinner"></i> Signing in...
+            </span>
+          }
+        </button>
+
+        <!-- Forgot Password Link -->
+        <div class="form-footer">
+          <a routerLink="/forgot-password" class="btn-link-forgot" style="text-decoration: none;">
+            Forgot your password?
+          </a>
+        </div>
+      </form>
+    </div>
+
+    <!-- Footer Copyright -->
+    <div class="login-footer">
+      <p>&copy; {{ currentYear }} Micro Mcpa Systems. All rights reserved.</p>
+    </div>
+  </div>
+</div>

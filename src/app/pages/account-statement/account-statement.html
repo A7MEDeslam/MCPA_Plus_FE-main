@@ -1,0 +1,177 @@
+<div class="account-page">
+  <div class="page-header">
+    <div>
+      <h1>Account Statement</h1>
+      <p class="subtitle">Select one or more accounts to view their transaction history</p>
+    </div>
+  </div>
+
+  <div class="error-box" *ngIf="errorMessage()">
+    {{ errorMessage() }}
+  </div>
+
+  <!-- Filters card -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Report Filters</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid" style="margin-bottom: 16px">
+        <div class="form-group">
+          <label>From date (optional)</label>
+          <input type="date" class="form-control" [(ngModel)]="fromDate" name="fromDate" />
+        </div>
+        <div class="form-group">
+          <label>To date (optional)</label>
+          <input type="date" class="form-control" [(ngModel)]="toDate" name="toDate" />
+        </div>
+      </div>
+
+      <!-- ACCOUNTS PICKER -->
+      <div class="form-group" style="margin-bottom: 12px">
+        <label>Search accounts</label>
+        <input type="text" class="form-control" placeholder="Search by code or name..." [ngModel]="accountSearchText()"
+          (ngModelChange)="accountSearchText.set($event)" />
+      </div>
+
+      <div class="flex-between" style="margin-bottom: 8px">
+        <span class="text-muted">{{ selectedCount() }} account(s) selected</span>
+        <div class="flex-gap">
+          <button type="button" class="link-btn" (click)="selectAllVisible()">Select all visible</button>
+          <button type="button" class="link-btn" (click)="clearSelection()">Clear selection</button>
+        </div>
+      </div>
+
+      <div class="account-picker-list">
+        <label class="account-picker-item" *ngFor="let a of filteredAccounts()">
+          <input type="checkbox" [checked]="isSelected(a.id)" (change)="toggleAccount(a.id)" />
+          <span class="badge" [ngClass]="'type-' + a.type">{{ a.code }}</span>
+          <span>{{ a.name }}</span>
+        </label>
+        <div class="empty" *ngIf="filteredAccounts().length === 0">No accounts match search.</div>
+      </div>
+
+      <!-- COST CENTERS PICKER -->
+      <div class="form-group" style="margin: 20px 0 12px">
+        <label>Search cost centers (optional)</label>
+        <input type="text" class="form-control" placeholder="Search by name..." [ngModel]="costCenterSearchText()"
+          (ngModelChange)="costCenterSearchText.set($event)" />
+      </div>
+
+      <div class="flex-between" style="margin-bottom: 8px">
+        <span class="text-muted">{{ selectedCostCenterCount() }} cost center(s) selected</span>
+        <div class="flex-gap">
+          <button type="button" class="link-btn" (click)="selectAllVisibleCostCenters()">Select all visible</button>
+          <button type="button" class="link-btn" (click)="clearCostCenterSelection()">Clear selection</button>
+        </div>
+      </div>
+
+      <div class="account-picker-list">
+        <label class="account-picker-item" *ngFor="let c of filteredCostCenters()">
+          <input type="checkbox" [checked]="isCostCenterSelected(c.id)" (change)="toggleCostCenter(c.id)" />
+          <span>{{ c.name }}</span>
+        </label>
+        <div class="empty" *ngIf="filteredCostCenters().length === 0">No cost centers match search.</div>
+      </div>
+
+      <div class="form-actions" style="margin-top: 16px">
+        <button type="button" class="btn btn-primary" [disabled]="isLoading()" (click)="runReport()">
+          <i class="pi pi-spin pi-spinner" *ngIf="isLoading()"></i>
+          <i class="pi pi-search" *ngIf="!isLoading()"></i>
+          Run Report
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="resetFilters()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Results -->
+  <div *ngIf="hasRun()" class="results-section">
+    <div class="results-toolbar" *ngIf="results().length > 0">
+      <div class="summary-cards compact">
+        <div class="summary-card asset">
+          <div class="card-title">Total Debit</div>
+          <div class="card-value">{{ grandTotalDebit() }} EGP</div>
+        </div>
+        <div class="summary-card liability">
+          <div class="card-title">Total Credit</div>
+          <div class="card-value">{{ grandTotalCredit() }} EGP</div>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-secondary" (click)="printAllReports()">
+        <i class="pi pi-print"></i>
+        Print All
+      </button>
+    </div>
+
+    <div class="statement-card" *ngFor="let row of results()">
+      <div class="statement-card-header" (click)="toggleExpand(row.accountCode)">
+        <div class="statement-card-title">
+          <i class="pi" [class.pi-chevron-down]="isExpanded(row.accountCode)"
+            [class.pi-chevron-right]="!isExpanded(row.accountCode)"></i>
+          <span class="acc-code-pill">{{ row.accountCode }}</span>
+          <span class="acc-name-text">{{ row.accountName }}</span>
+        </div>
+
+        <div class="statement-card-meta">
+          <div class="meta-pill">
+            <span class="meta-label">Opening</span>
+            <span class="meta-value">{{ row.openingBalance }} EGP</span>
+          </div>
+          <div class="meta-pill" [class.negative]="row.currentBalance < 0">
+            <span class="meta-label">Current</span>
+            <span class="meta-value">{{ row.currentBalance }} EGP</span>
+          </div>
+          <button type="button" class="btn-small" (click)="printSingleReport(row); $event.stopPropagation()">
+            <i class="pi pi-print"></i>
+            Print
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrapper" *ngIf="isExpanded(row.accountCode)">
+        <table class="accounts-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Journal #</th>
+              <th>Reference</th>
+              <th>Description</th>
+              <th class="num">Debit</th>
+              <th class="num">Credit</th>
+              <th class="num">Running Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of row.transactions">
+              <td>{{ t.date | date:'yyyy-MM-dd' }}</td>
+              <td>{{ t.journalNumber }}</td>
+              <td>{{ t.reference }}</td>
+              <td>{{ t.description }}</td>
+              <td class="num">{{ t.debit || 0 }} EGP</td>
+              <td class="num">{{ t.credit || 0 }} EGP</td>
+              <td class="num">{{ t.runningBalance }} EGP</td>
+            </tr>
+            <tr *ngIf="row.transactions.length === 0">
+              <td colspan="7" class="empty">No transactions in this period.</td>
+            </tr>
+          </tbody>
+          <tfoot *ngIf="row.transactions.length > 0">
+            <tr>
+              <td colspan="4"><strong>Totals</strong></td>
+              <td class="num"><strong>{{ rowTotalDebit(row) }} EGP</strong></td>
+              <td class="num"><strong>{{ rowTotalCredit(row) }} EGP</strong></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="empty" *ngIf="results().length === 0">
+      No data returned for the selected accounts.
+    </div>
+  </div>
+</div>

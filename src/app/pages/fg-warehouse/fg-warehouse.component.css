@@ -1,0 +1,262 @@
+/* FG Warehouse Component Styles */
+
+.page-header-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.page-header-actions .btn {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.fg-warehouse-tabs {
+  display: flex;
+  gap: 8px;
+  margin: -8px 0 22px;
+  border-bottom: 1px solid #dbe5eb;
+}
+
+.fg-warehouse-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: #70859a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fg-warehouse-tabs button:hover,
+.fg-warehouse-tabs button.active {
+  color: #078a93;
+}
+
+.fg-warehouse-tabs button.active {
+  border-bottom-color: #078a93;
+}
+
+.fg-product-modal {
+  width: min(680px, calc(100vw - 40px));
+  max-width: calc(100vw - 40px);
+}
+
+.modal-intro {
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  background: #f0fafb;
+  border: 1px solid #c9e8eb;
+  border-radius: 8px;
+  color: #617b93;
+  font-size: 12px;
+}
+
+.modal-intro p {
+  margin: 4px 0 0;
+  line-height: 1.45;
+}
+
+.eyebrow {
+  color: #078a93;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.fg-product-form-grid .full-width {
+  grid-column: 1 / -1;
+}
+
+.req {
+  color: #d94841;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .04em;
+}
+
+.serial-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  color: #536a80;
+  font-size: 13px;
+}
+
+.serial-preview i {
+  color: #138d95;
+}
+
+.serial-preview code {
+  margin-left: auto;
+  padding: 3px 10px;
+  background: #fff;
+  border: 1px solid #dce6ed;
+  border-radius: 6px;
+  color: #2754c7;
+  font-weight: 700;
+}
+
+.reserved-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fff1d6;
+  color: #a96508;
+  font-weight: 700;
+}
+
+.reserved-badge.empty {
+  background: #f1f5f9;
+  color: #8293a2;
+}
+
+.reserve-modal {
+  width: min(720px, calc(100vw - 40px));
+  max-width: calc(100vw - 40px);
+}
+
+.reserve-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.reserve-summary div {
+  padding: 10px 12px;
+  border: 1px solid #dce7ed;
+  border-radius: 8px;
+  background: #fbfdfe;
+}
+
+.reserve-summary span {
+  display: block;
+  color: #758a9c;
+  font-size: 11px;
+}
+
+.reserve-summary strong {
+  display: block;
+  margin-top: 3px;
+  color: #17344c;
+  font-size: 18px;
+}
+
+.reserve-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.reserve-form-grid .form-group:last-child {
+  max-width: 220px;
+}
+
+.serial-picker {
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid #dce7ed;
+  border-radius: 9px;
+  background: #fbfdfe;
+}
+
+.serial-picker-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: #17344c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.serial-picker-heading small {
+  color: #7a8fa2;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.serial-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.serial-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px solid #dce7ed;
+  border-radius: 7px;
+  background: #fff;
+  color: #425d73;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.serial-option.selected {
+  border-color: #0b8e97;
+  background: #eaf8f8;
+  color: #08777e;
+}
+
+.serial-option input {
+  accent-color: #0b8e97;
+}
+
+.empty-serials {
+  padding: 14px;
+  color: #7a8fa2;
+  font-size: 12px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .page-header-actions {
+    flex-direction: column;
+  }
+
+  .fg-product-modal {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+  }
+
+  .reserve-modal {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+  }
+
+  .reserve-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .reserve-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fg-warehouse-tabs {
+    overflow-x: auto;
+  }
+}

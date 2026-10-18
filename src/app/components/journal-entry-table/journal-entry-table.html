@@ -1,0 +1,67 @@
+<table>
+
+  <thead>
+
+    <tr>
+
+      <th>Document No.</th>
+
+      <th>Posting Date</th>
+
+      <th>Period</th>
+
+      <th>Reference</th>
+
+      <th>Goods Receipt</th>
+
+      <th>Total Debit</th>
+
+      <th>Status</th>
+
+      <th>Actions</th>
+
+    </tr>
+
+  </thead>
+
+  <tbody>
+
+    <tr *ngFor="let entry of entries">
+
+      <td>{{entry.entryNumber}}</td>
+
+      <td>{{entry.postingDate | date}}</td>
+
+      <td>{{entry.period}}</td>
+
+      <td>{{entry.reference}}</td>
+
+      <td>{{ entry.goodsReceiptNumber || '-' }}</td>
+
+      <td>{{entry.totalDebit | number}}</td>
+
+      <td>
+        <span [class]="getStatusClass(entry.status)">
+          {{ getStatusLabel(entry.status) }}
+        </span>
+      </td>
+
+      <td class="actions">
+        <button (click)="view.emit(entry)" title="View">
+          <i class="pi pi-eye"></i>
+        </button>
+
+        <button (click)="edit.emit(entry)" title="Edit" *ngIf="canEdit(entry)">
+          <i class="pi pi-pencil"></i>
+        </button>
+
+        <button (click)="cancelEntry.emit(entry)" title="Cancel" *ngIf="canCancel(entry)">
+          <i class="pi pi-times-circle"></i>
+        </button>
+      </td>
+
+    </tr>
+
+  </tbody>
+
+</table>

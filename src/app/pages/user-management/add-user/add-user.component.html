@@ -1,0 +1,95 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="form-grid" novalidate>
+  <!-- Username -->
+  <div class="form-group">
+    <label for="username">Username *</label>
+    <input id="username" type="text" formControlName="username" placeholder="e.g. ahmed_ali" class="form-control"
+      [class.invalid]="err('username')" maxlength="30" autocomplete="off"
+      (input)="sanitize($event, 'username', 'username')" />
+    @if (err('username')) {
+    <span class="text-danger field-error">{{ err('username') }}</span>
+    }
+  </div>
+
+  <!-- Email -->
+  <div class="form-group">
+    <label for="email">Email *</label>
+    <input id="email" type="email" formControlName="email" placeholder="e.g. name@mail.com" class="form-control"
+      [class.invalid]="err('email')" maxlength="100" autocomplete="off" (input)="sanitize($event, 'email', 'email')" />
+    @if (err('email')) {
+    <span class="text-danger field-error">{{ err('email') }}</span>
+    }
+  </div>
+
+  <!-- Phone Number -->
+  <div class="form-group">
+    <label for="phoneNumber">Phone Number *</label>
+    <input id="phoneNumber" type="tel" inputmode="tel" formControlName="phoneNumber" placeholder="e.g. 01012345678"
+      class="form-control" [class.invalid]="err('phoneNumber')" maxlength="13" autocomplete="off"
+      (input)="sanitize($event, 'phoneNumber', 'phone')" />
+    @if (err('phoneNumber')) {
+    <span class="text-danger field-error">{{ err('phoneNumber') }}</span>
+    }
+  </div>
+
+  <!-- Password -->
+  <div class="form-group">
+    <label for="password">Password *</label>
+    <input id="password" type="password" formControlName="password" placeholder="Letters and numbers, min 6"
+      class="form-control" [class.invalid]="err('password')" maxlength="50" autocomplete="new-password"
+      (input)="sanitize($event, 'password', 'password')" />
+    @if (err('password')) {
+    <span class="text-danger field-error">{{ err('password') }}</span>
+    }
+  </div>
+
+  <!-- Role -->
+  <div class="form-group">
+    <label for="roleName">Role *</label>
+    <select id="roleName" formControlName="roleName" class="form-control" [class.invalid]="err('roleName')">
+      <option value="">Select a role</option>
+      @for (role of availableRoles; track role.id) {
+      <option [value]="role.name">{{ role.name }}</option>
+      }
+    </select>
+    @if (err('roleName')) {
+    <span class="text-danger field-error">Role is required</span>
+    }
+  </div>
+
+  @if (isOutsourceRole(form.get('roleName')?.value)) {
+  <!-- Company Name -->
+  <div class="form-group">
+    <label for="companyName">Company Name *</label>
+    <input id="companyName" type="text" formControlName="companyName" placeholder="e.g. Egy Steel" class="form-control"
+      [class.invalid]="err('companyName')" maxlength="100" autocomplete="off"
+      (input)="sanitize($event, 'companyName', 'company')" />
+    @if (err('companyName')) {
+    <span class="text-danger field-error">{{ err('companyName') }}</span>
+    }
+  </div>
+
+  <!-- Location -->
+  <div class="form-group">
+    <label for="location">Location *</label>
+    <input id="location" type="text" formControlName="location" placeholder="e.g. Cairo, Nasr City" class="form-control"
+      [class.invalid]="err('location')" maxlength="100" autocomplete="off"
+      (input)="sanitize($event, 'location', 'location')" />
+    @if (err('location')) {
+    <span class="text-danger field-error">{{ err('location') }}</span>
+    }
+  </div>
+  }
+</form>
+
+@if (errorMessage) {
+<div class="alert alert-error" style="margin-top: 16px;">
+  {{ errorMessage }}
+</div>
+}
+
+<div class="form-actions">
+  <button type="button" class="btn btn-ghost" [disabled]="loading" (click)="close()">Cancel</button>
+  <button type="submit" class="btn btn-primary" [disabled]="loading || form.invalid" (click)="onSubmit()">
+    {{ loading ? 'Saving...' : 'Add User' }}
+  </button>
+</div>

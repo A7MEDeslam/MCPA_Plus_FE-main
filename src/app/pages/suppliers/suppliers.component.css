@@ -1,0 +1,6 @@
+/* Suppliers Component Styles */
+.form-control.invalid { border-color: #e53935; }
+.error-text { color: #e53935; font-size: 12px; margin-top: 4px; display: block; }.btn-danger { background: #e53935; color: #fff; border: none; }
+.btn-danger:hover:not(:disabled) { background: #c62828; }
+.btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+.warning-text { color: #e53935; font-size: 13px; margin-top: 6px; }

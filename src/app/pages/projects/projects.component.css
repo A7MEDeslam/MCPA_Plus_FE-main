@@ -1,0 +1,73 @@
+/* Projects Page Layout Overrides */
+
+.col-name {
+  width: 50%;
+}
+
+.col-serials {
+  width: 25%;
+  text-align: center;
+}
+
+.col-actions {
+  width: 25%;
+  text-align: right;
+}
+
+.project-name {
+  font-weight: 600;
+  color: var(--navy);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-row.active {
+  background: rgba(13, 126, 138, 0.05);
+}
+
+.project-row.active td {
+  font-weight: 600;
+}
+
+.search-input-wrapper {
+  position: relative;
+}
+
+.search-input-wrapper .search-icon {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.search-input {
+  padding-left: 42px;
+}
+
+.btn-create i,
+.modal-title i,
+.active-project-badge i {
+  margin-right: 8px;
+}
+
+.btn-edit,
+.btn-delete {
+  min-width: 38px;
+  padding: 10px 12px;
+}
+
+.empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(13, 126, 138, 0.1);
+  color: var(--teal);
+  font-size: 1.25rem;
+  margin-bottom: 14px;
+}

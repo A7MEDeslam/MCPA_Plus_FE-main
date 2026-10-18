@@ -1,0 +1,55 @@
+:host { display: block; }
+.general-inventory-page { direction: ltr; }
+.general-inventory-page .page-header h1 { display: flex; align-items: center; gap: 10px; }
+.general-inventory-page .page-header h1 i { color: #15939a; }
+.stat-card { text-align: left; }
+.stat-card.amber .stat-value { color: #b7791f; }
+.inventory-toolbar { gap: 14px; flex-wrap: wrap; }
+.inventory-tabs { width: 100%; margin: 0; padding: 7px 14px 0; border: 0; border-bottom: 1px solid #e8edf0; border-radius: 14px 14px 0 0; background: #f8fafb; }
+.inventory-tabs .tab { display: inline-flex; align-items: center; gap: 7px; margin-bottom: -1px; }
+.tab-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; color: #9a6421; background: #fff0d7; font-size: 10px; font-weight: 800; }
+.toolbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
+.toolbar-actions .search-input-wrapper { display: block; }
+.toolbar-actions .search-input { min-width: 225px; }
+.low-stock-banner { display: flex; align-items: center; gap: 9px; margin: 14px 18px 0; padding: 10px 13px; border: 1px solid #f0d9a8; border-radius: 9px; color: #8a6427; background: #fff9eb; font-size: 13px; }
+.table-scroll { width: 100%; overflow-x: auto; }
+.general-inventory-page table { min-width: 850px; }
+.general-inventory-page th, .general-inventory-page td { text-align: left; vertical-align: middle; }
+.description { display: block; margin-top: 2px; color: #84939e; font-size: 11px; }
+.stock-status { display: inline-flex; padding: 4px 9px; border-radius: 999px; color: #137350; background: #e6f5ed; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.stock-status.low { color: #a04b20; background: #fff0e8; }
+.row-actions { display: flex; align-items: center; gap: 4px; }
+.icon-action { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #e1e8ec; border-radius: 7px; color: #627988; background: #fff; cursor: pointer; }
+.icon-action:hover { border-color: #b8d9da; color: #087e85; background: #eff8f8; }
+.icon-action.receive { color: #168251; }
+.icon-action.issue { color: #b27419; }
+.icon-action.danger-action:hover { border-color: #f1c4c4; color: #c33e3e; background: #fff4f4; }
+.empty-row { padding: 28px !important; color: #85939d; text-align: center !important; }
+.notice { margin: 0 0 14px; padding: 11px 14px; border-radius: 9px; font-size: 13px; }
+.notice.error { border: 1px solid #f0c6c6; color: #a93434; background: #fff2f2; }
+.notice.success { border: 1px solid #bce3d0; color: #176b4c; background: #effaf4; }
+.modal-overlay.open { z-index: 400; }
+.inventory-modal { width: min(620px, 100%); max-height: 90vh; overflow: auto; border: 1px solid #e1e8ec; border-radius: 15px; background: #fff; box-shadow: 0 18px 55px rgb(11 34 49 / 0.2); animation: inventoryModalIn 140ms ease-out; }
+.compact-modal { width: min(460px, 100%); }
+.history-modal { width: min(900px, 100%); }
+.inventory-modal .modal-header { direction: ltr; }
+.inventory-modal .modal-title { margin: 0; }
+.inventory-modal .modal-body { direction: ltr; }
+.inventory-modal .modal-footer { direction: ltr; }
+.inventory-modal .form-group { margin-bottom: 14px; }
+.inventory-modal .form-group label { color: #405969; }
+.inventory-modal textarea { resize: vertical; }
+.inventory-modal .full-width { grid-column: 1 / -1; }
+.form-hint { margin-top: 12px; color: #8997a0; font-size: 11px; }
+.modal-context { margin-bottom: 16px; color: #183b52; font-weight: 700; }
+.modal-context span { margin-left: 4px; color: #718392; font-weight: 500; }
+@keyframes inventoryModalIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 700px) {
+  .inventory-toolbar { align-items: stretch; }
+  .toolbar-actions { justify-content: stretch; width: 100%; }
+  .toolbar-actions .search-input-wrapper { flex: 1 1 100%; }
+  .toolbar-actions .search-input { width: 100%; min-width: 0; }
+  .toolbar-actions .btn { flex: 1 1 auto; padding-inline: 10px; }
+  .inventory-modal .modal-body { padding: 18px; }
+  .inventory-modal .modal-footer { padding: 12px 18px; }
+}

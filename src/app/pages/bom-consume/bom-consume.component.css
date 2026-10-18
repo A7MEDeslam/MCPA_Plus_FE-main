@@ -1,0 +1,110 @@
+.modal table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.modal td,
+.modal th {
+  overflow: hidden;
+}
+
+.modal td app-searchable-select,
+.modal td .searchable-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+.bom-table {
+  table-layout: auto;
+  width: 100%;
+}
+
+.bom-table th,
+.bom-table td {
+  overflow: hidden;
+}
+
+.bom-table th:nth-child(1),
+.bom-table td:nth-child(1) {
+  width: 16%;
+}
+
+.bom-table th:nth-child(2),
+.bom-table td:nth-child(2) {
+  width: 20%;
+}
+
+.bom-table th:nth-child(3),
+.bom-table td:nth-child(3) {
+  width: 20%;
+}
+
+.bom-table th:nth-child(4),
+.bom-table td:nth-child(4) {
+  width: 8%;
+}
+
+.bom-table th:nth-child(5),
+.bom-table td:nth-child(5) {
+  width: 10%;
+}
+
+.bom-table th:nth-child(6),
+.bom-table td:nth-child(6) {
+  width: 10%;
+}
+
+.bom-table th:nth-child(7),
+.bom-table td:nth-child(7) {
+  width: 10%;
+}
+
+.bom-table td app-searchable-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border: 2px solid #cbd5e0;
+  border-top-color: #3182ce;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.loading-box {
+  padding: 16px;
+  text-align: center;
+  color: #718096;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border: 2px solid #cbd5e0;
+  border-top-color: #3182ce;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.loading-box {
+  padding: 16px;
+  text-align: center;
+  color: #718096;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

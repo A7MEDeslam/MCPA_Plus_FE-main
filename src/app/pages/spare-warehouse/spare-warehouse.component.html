@@ -1,0 +1,124 @@
+<div class="page active" id="page-sparewh">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-refresh" style="margin-right: 8px;"></i>Spare Warehouse</h1>
+      <p>Receive unused raw materials returned from project sites</p>
+    </div>
+  </div>
+
+  @if (!selectedWarehouseId()) {
+    <div class="card" style="padding: 40px; text-align: center;">
+      <i class="pi pi-exclamation-triangle" style="font-size: 3rem; color: var(--amber); margin-bottom: 15px;"></i>
+      <h3>No Spare Warehouse Configured</h3>
+      <p style="color: var(--text-muted);">Please configure a Spare warehouse in Master Data.</p>
+    </div>
+  } @else {
+    <!-- Main Content Grid -->
+    <div class="grid" style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: start;">
+      
+      <!-- Left Column: Return Form -->
+      <div class="card" style="overflow: visible !important; backdrop-filter: none !important; background: #ffffff !important;">
+        <div class="card-header">
+          <span class="card-title">Return Spare Material</span>
+        </div>
+
+        <div class="card-body">
+          @if (canReturn) {
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label>Source Project</label>
+              <app-searchable-select
+                [(ngModel)]="returnForm.projectId"
+                [options]="projectOptions()"
+                placeholder="Select project"
+                searchPlaceholder="Search projects...">
+              </app-searchable-select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label>Raw Material</label>
+              <app-searchable-select
+                [(ngModel)]="returnForm.rawMaterialId"
+                [options]="rawMaterialOptions()"
+                placeholder="Select raw material"
+                searchPlaceholder="Search materials...">
+              </app-searchable-select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label>Quantity to Return</label>
+              <input class="form-control" type="number" min="0.01" step="any" [(ngModel)]="returnForm.quantity" placeholder="Enter quantity..." />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+              <label>Notes</label>
+              <textarea class="form-control" rows="3" [(ngModel)]="returnForm.notes" placeholder="Reason for return, batch details, etc..."></textarea>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%;" (click)="submitReturn()">
+              <i class="pi pi-check" style="margin-right: 4px;"></i>Post Return to Stock
+            </button>
+          } @else {
+            <div class="alert alert-warning" style="margin: 0; padding: 12px; background: rgba(212, 130, 26, 0.1); border-left: 4px solid var(--amber); color: var(--amber); border-radius: 4px;">
+              You do not have the required permissions to post spare warehouse returns.
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Right Column: Return History -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Return History (Spare Warehouse)</span>
+          <div class="search-input-wrapper">
+            <i class="pi pi-search search-icon"></i>
+            <input class="form-control search-input" placeholder="Search history..." [ngModel]="historySearch()" (ngModelChange)="historySearch.set($event); pagination.currentPage.set(1)" />
+          </div>
+        </div>
+
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Returned At</th>
+                <th>Material</th>
+                <th>Quantity</th>
+                <th>Balance After</th>
+                <th>Project</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of pagedHistory(); track row.id) {
+                <tr>
+                  <td>{{row.returnedAt | date:'medium'}}</td>
+                  <td>
+                    <strong>{{row.materialCode}}</strong><br/>
+                    <small style="color: var(--text-muted);">{{row.materialName}}</small>
+                  </td>
+                  <td><span class="badge badge-success">+{{row.quantityIn | number}}</span></td>
+                  <td>{{row.balanceAfter | number}}</td>
+                  <td>{{getProjectName(row.projectId)}}</td>
+                  <td>
+                    <span style="font-size: 0.9rem;" [title]="row.notes">{{row.notes || '—'}}</span>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="empty">No spare return history found for this warehouse.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <app-pagination
+          [totalItems]="filteredHistory().length"
+          [pageSize]="pagination.pageSize()"
+          [currentPage]="pagination.currentPage()"
+          (pageChange)="pagination.currentPage.set($event)">
+        </app-pagination>
+      </div>
+
+    </div>
+  }
+</div>

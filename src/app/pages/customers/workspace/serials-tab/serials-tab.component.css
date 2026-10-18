@@ -1,0 +1,113 @@
+.serials-workspace {
+  min-width: 0;
+  padding: 22px 24px 24px;
+  background: #fff;
+}
+.serials-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.serials-heading .eyebrow {
+  margin-bottom: 5px;
+  color: #14858c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.serials-heading h3 {
+  margin: 0;
+  color: #17364d;
+  font-family: 'Manrope', sans-serif;
+  font-size: 17px;
+  font-weight: 750;
+}
+.serials-heading p {
+  margin: 5px 0 0;
+  color: #6b7e8d;
+  font-size: 12px;
+}
+.serials-count {
+  flex: none;
+  padding: 6px 10px;
+  border: 1px solid #d5e9e9;
+  border-radius: 999px;
+  background: #eff8f8;
+  color: #126d74;
+  font-size: 11px;
+  font-weight: 700;
+}
+.serials-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e3eaee;
+  border-radius: 10px;
+}
+.serials-table { min-width: 820px; width: 100%; }
+.serials-table th {
+  padding: 11px 13px;
+  background: #f4f7f9;
+  color: #627888;
+  font-size: 10px;
+  letter-spacing: .045em;
+  white-space: nowrap;
+}
+.serials-table td {
+  padding: 12px 13px;
+  color: #344d5e;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.serial-code {
+  color: #153d53;
+  font-family: 'Public Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+}
+.serial-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 9px;
+  border: 1px solid #dce8ec;
+  border-radius: 999px;
+  background: #f3f7f8;
+  color: #456171;
+  font-size: 10px;
+  font-weight: 700;
+}
+.serials-state,
+.serials-empty {
+  display: flex;
+  min-height: 190px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #718391;
+  font-size: 13px;
+}
+.serials-state > .pi { color: #16858c; font-size: 17px; }
+.serials-error { flex-wrap: wrap; color: #9c4541; }
+.serials-error > .pi { color: #c34d48; }
+.serials-empty { flex-direction: column; gap: 7px; text-align: center; }
+.serials-empty strong { color: #244458; font-size: 13px; }
+.serials-empty > span:last-child { color: #7c8d99; font-size: 11px; }
+.serials-empty-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 3px;
+  place-items: center;
+  border: 1px solid #d7ebeb;
+  border-radius: 13px;
+  background: #eff8f8;
+  color: #12858c;
+  font-size: 17px;
+}
+
+@media (max-width: 700px) {
+  .serials-workspace { padding: 16px 14px; }
+  .serials-heading { align-items: flex-start; }
+}

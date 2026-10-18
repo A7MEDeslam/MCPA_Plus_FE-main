@@ -1,0 +1,150 @@
+<div class="progression-page">
+  <header class="progression-topbar">
+    <div>
+      <span class="eyebrow">Warehouse</span>
+      <h1>Delivery requests</h1>
+    </div>
+    <button class="btn btn-ghost" type="button" (click)="refresh()">
+      <i class="pi pi-refresh"></i> Refresh
+    </button>
+  </header>
+
+  <div class="progression-layout">
+    <!-- ===== List ===== -->
+    <aside class="customer-rail">
+      <div class="rail-header">
+        <div>
+          <span class="eyebrow">Queue</span>
+          <h2>{{ activeTab() === 'pending' ? 'Pending approval' : 'Approved' }}</h2>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="rail-filters" style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-ghost" [class.btn-primary]="activeTab() === 'pending'"
+          (click)="setTab('pending')">
+          Pending ({{ requests().length }})
+        </button>
+        <button type="button" class="btn btn-ghost" [class.btn-primary]="activeTab() === 'approved'"
+          (click)="setTab('approved')">
+          Approved ({{ approvedRequests().length }})
+        </button>
+      </div>
+
+      <div *ngIf="loading()" class="rail-state"><i class="pi pi-spin pi-spinner"></i> Loading</div>
+
+      <button *ngFor="let request of currentList()" class="customer-rail-item" type="button"
+        [class.active]="selected()?.id === request.id" (click)="select(request)">
+        <span class="company-avatar"><i class="pi pi-box"></i></span>
+        <span class="rail-company">
+          <strong>{{ request.requestNumber }}</strong>
+          <small>{{ request.quantity }} unit(s) &middot; {{ request.requestedAt | date: 'd MMM, h:mm a' }}</small>
+        </span>
+      </button>
+
+      <div *ngIf="!loading() && !currentList().length" class="rail-state">
+        {{ activeTab() === 'pending' ? 'No pending requests.' : 'No approved requests.' }}
+      </div>
+    </aside>
+
+    <!-- ===== Details ===== -->
+    <main class="customer-workspace" *ngIf="selected() as request; else noRequest">
+      <section class="poc-pilot-workspace">
+        <div class="poc-pilot-heading">
+          <div>
+            <span class="eyebrow">Request</span>
+            <h3>{{ request.requestNumber }}</h3>
+            <p>
+              {{ activeTab() === 'pending'
+              ? 'Collect the units below, then approve or reject the request.'
+              : 'This request is approved. Upload the signed delivery paper once items are handed over.' }}
+            </p>
+          </div>
+          <span class="poc-status-badge">{{ request.status }}</span>
+        </div>
+
+        <div *ngIf="detailsLoading()" class="table-state">
+          <i class="pi pi-spin pi-spinner"></i> Loading details...
+        </div>
+
+        <div class="poc-pilot-layout">
+          <div class="poc-pilot-main">
+            <article class="detail-card">
+              <div class="detail-grid">
+                <div><label>Request date</label><strong>{{ request.requestedAt | date: 'medium' }}</strong></div>
+                <div><label>Total quantity</label><strong>{{ request.quantity }}</strong></div>
+              </div>
+            </article>
+
+            <article class="detail-card">
+              <div class="card-heading">
+                <div>
+                  <span class="eyebrow">Items to collect</span>
+                  <h3>Serial numbers</h3>
+                </div>
+                <b>{{ request.serials.length }} serial(s)</b>
+              </div>
+
+              <div class="contact-list">
+                <div class="contact-row" *ngFor="let serial of request.serials">
+                  <div class="contact-row-info">
+                    <div class="contact-row-name"><strong>{{ serial.serial }}</strong></div>
+                    <div class="contact-row-details">
+                      <span>{{ serial.productName }}</span>
+                      <span>{{ serial.productCode }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <aside class="insights-column">
+            <!-- قبل القرار -->
+            <article class="action-card" *ngIf="approvedId() !== request.id">
+              <span class="eyebrow">Decision</span>
+              <h3>Approve or reject</h3>
+              <div class="form-group">
+                <label>Comment</label>
+                <textarea class="form-control" rows="3" [(ngModel)]="comment"
+                  placeholder="e.g. Serials checked and ready for delivery."></textarea>
+              </div>
+              <div class="approval-actions">
+                <button class="btn btn-primary" type="button" [disabled]="deciding()" (click)="decide(true)">
+                  <i [class]="deciding() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i> Approve
+                </button>
+                <button class="btn btn-ghost danger-btn" type="button" [disabled]="deciding()" (click)="decide(false)">
+                  Reject
+                </button>
+              </div>
+            </article>
+
+            <!-- بعد الـ Approve: رفع الورقة الموقعة -->
+            <article class="action-card" *ngIf="approvedId() === request.id">
+              <span class="eyebrow">Next step</span>
+              <h3>Upload signed delivery paper</h3>
+              <p>Attach the signed paper (PDF, PNG or JPEG) once the items are handed over.</p>
+              <div class="form-group">
+                <input class="form-control" type="file" accept="image/*,.pdf" (change)="onFileSelected($event)" />
+              </div>
+              <div class="approval-actions">
+                <button class="btn btn-primary" type="button" [disabled]="uploading() || !pendingFile"
+                  (click)="uploadSigned()">
+                  <i [class]="uploading() ? 'pi pi-spin pi-spinner' : 'pi pi-upload'"></i> Upload
+                </button>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <ng-template #noRequest>
+      <main class="empty-workspace">
+        <i class="pi pi-box"></i>
+        <h2>Select a request</h2>
+        <p>Choose a pending request to review its serials.</p>
+      </main>
+    </ng-template>
+  </div>
+</div>

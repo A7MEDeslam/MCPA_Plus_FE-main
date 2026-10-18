@@ -1,0 +1,197 @@
+<div class="page active" id="page-user-management">
+  <!-- Header -->
+  <div class="page-header">
+    <h1><i class="pi pi-users" style="margin-right: 8px; color: var(--teal);"></i>User &amp; Role Management</h1>
+    <p>Manage application users, assign their roles, and configure system permissions.</p>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <div class="tabs">
+    <div class="tab" [class.active]="selectedTab === 'users'" (click)="switchTab('users')">
+      <i class="pi pi-user" style="margin-right: 6px;"></i>Users
+    </div>
+    <div class="tab" [class.active]="selectedTab === 'roles'" (click)="switchTab('roles')">
+      <i class="pi pi-shield" style="margin-right: 6px;"></i>Roles &amp; Permissions
+    </div>
+  </div>
+
+  <!-- Users Tab Content -->
+  @if (selectedTab === 'users') {
+  <div class="card">
+    <div class="card-header flex-between" style="gap: 16px; flex-wrap: wrap;">
+      <span class="card-title">User Accounts</span>
+      <div style="display: flex; gap: 12px; flex: 1; justify-content: flex-end; min-width: 280px; flex-wrap: wrap;">
+        <input type="text" [(ngModel)]="searchText" (ngModelChange)="usersPagination.currentPage.set(1)"
+          placeholder="Search by name, email, phone..." class="form-control" style="width: 250px;" />
+        <select [(ngModel)]="selectedRole" (ngModelChange)="usersPagination.currentPage.set(1)" class="form-control"
+          style="width: 160px;">
+          <option value="">All Roles</option>
+          @for (role of roles; track role.roleId) {
+          <option [value]="role.roleName">{{ role.roleName }}</option>
+          }
+        </select>
+        <button class="btn btn-primary" [disabled]="!isCeo"
+          [title]="isCeo ? 'Register a new user' : 'Only the CEO can add users'" [style.opacity]="isCeo ? '1' : '0.55'"
+          [style.cursor]="isCeo ? 'pointer' : 'not-allowed'" (click)="isCeo && (showAddUserForm = true)">
+          <i [class]="isCeo ? 'pi pi-user-plus' : 'pi pi-lock'"></i>
+          {{ isCeo ? 'Add User' : 'Add User (CEO only)' }}
+        </button>
+      </div>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Assigned Role</th>
+            <th style="text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of pagedUsers; track user.id) {
+          <tr>
+            <td>
+              <div style="font-weight: 700; color: var(--navy);">{{ user.userName }}</div>
+            </td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.phoneNumber || '-' }}</td>
+            <td>
+              <select [ngModel]="user.roleName" (ngModelChange)="isCeo && updateUserRole(user.id, $event)"
+                [disabled]="!isCeo" [title]="isCeo ? 'Change role' : 'Only the CEO can assign roles'"
+                class="form-control" style="width: 160px; padding: 4px 8px; font-size: 13px;"
+                [style.opacity]="isCeo ? '1' : '0.65'" [style.cursor]="isCeo ? 'pointer' : 'not-allowed'">
+                @for (r of roles; track r.roleId) {
+                <option [value]="r.roleName">{{ r.roleName }}</option>
+                }
+              </select>
+            </td>
+            <td style="text-align: right;">
+              <button *ngIf="isOutsourceRole(user.roleName)" class="btn btn-ghost btn-xs mr-6"
+                (click)="openOutsourceModal(user)" style="margin-right: 6px;">
+                <i class="pi pi-building"></i> Company Info
+              </button>
+              <button *ngIf="isCeo" class="btn btn-ghost btn-xs" (click)="deleteUser(user.id)"
+                style="color: var(--danger); border-color: rgba(220, 53, 69, 0.2);">
+                <i class="pi pi-trash"></i> Delete
+              </button>
+            </td>
+
+          </tr>
+          } @empty {
+          <tr>
+            <td colspan="5" class="empty">No users found. Click "Add User" to register a new account.</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pagination [totalItems]="filteredUsers.length" [pageSize]="usersPagination.pageSize()"
+      [currentPage]="usersPagination.currentPage()" (pageChange)="usersPagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+  }
+
+  <!-- Roles Tab Content -->
+  @if (selectedTab === 'roles') {
+  <div class="card">
+    <div class="card-header flex-between">
+      <span class="card-title">Configured System Roles</span>
+      <button class="btn btn-primary" [disabled]="!isCeo"
+        [title]="isCeo ? 'Define a new role' : 'Only the CEO can add roles'" [style.opacity]="isCeo ? '1' : '0.55'"
+        [style.cursor]="isCeo ? 'pointer' : 'not-allowed'" (click)="isCeo && (showAddRoleForm = true)">
+        <i [class]="isCeo ? 'pi pi-plus' : 'pi pi-lock'"></i>
+        {{ isCeo ? 'Add Role' : 'Add Role (CEO only)' }}
+      </button>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Role Name</th>
+            <th>Assigned Permissions / Claims</th>
+            <th style="text-align: right; width: 120px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (role of pagedRoles; track role.roleId) {
+          <tr>
+            <td style="vertical-align: top; padding-top: 18px;">
+              <div style="font-weight: 700; color: var(--navy); font-size: 15px;">{{ role.roleName }}</div>
+            </td>
+            <td>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                @for (claim of role.claims; track claim.value) {
+                <span class="serial-tag"
+                  style="background: rgba(13, 126, 138, 0.1); color: var(--teal); border-color: rgba(13, 126, 138, 0.2);">
+                  {{ claim.value }}
+                </span>
+                } @empty {
+                <span class="text-muted" style="font-style: italic;">No permissions assigned to this role</span>
+                }
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top; padding-top: 14px;">
+              <button *ngIf="isCeo" class="btn btn-ghost btn-xs" (click)="deleteRole(role.roleName)"
+                style="color: var(--danger); border-color: rgba(220, 53, 69, 0.2);">
+                <i class="pi pi-trash"></i> Delete
+              </button>
+            </td>
+          </tr>
+          } @empty {
+          <tr>
+            <td colspan="3" class="empty">No roles found. Click "Add Role" to define a new one.</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pagination [totalItems]="roles.length" [pageSize]="rolesPagination.pageSize()"
+      [currentPage]="rolesPagination.currentPage()" (pageChange)="rolesPagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+  }
+</div>
+
+<!-- Add User Modal -->
+@if (showAddUserForm) {
+<div class="modal-overlay open" (click)="showAddUserForm = false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Register New User Account</span>
+      <button class="modal-close" (click)="showAddUserForm = false">&times;</button>
+    </div>
+    <div class="modal-body">
+      <app-add-user (userAdded)="onUserAdded()" (closed)="showAddUserForm = false"></app-add-user>
+    </div>
+  </div>
+</div>
+}
+
+<!-- Add Role Modal -->
+@if (showAddRoleForm) {
+<div class="modal-overlay open" (click)="showAddRoleForm = false">
+  <div class="modal" (click)="$event.stopPropagation()" style="width: min(720px, 100%);">
+    <div class="modal-header">
+      <span class="modal-title">Define New System Role</span>
+      <button class="modal-close" (click)="showAddRoleForm = false">&times;</button>
+    </div>
+    <div class="modal-body">
+      <app-add-role (roleAdded)="onRoleAdded()" (closed)="showAddRoleForm = false"></app-add-role>
+    </div>
+  </div>
+</div>
+}
+<!-- Outsource Company Info Modal -->
+@if (showOutsourceModal) {
+<div class="modal-overlay open" (click)="showOutsourceModal = false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <app-outsource-profile-modal [userId]="selectedOutsourceUserId" [userName]="selectedOutsourceUserName"
+      (saved)="onOutsourceProfileSaved()" (closed)="showOutsourceModal = false">
+    </app-outsource-profile-modal>
+  </div>
+</div>
+}

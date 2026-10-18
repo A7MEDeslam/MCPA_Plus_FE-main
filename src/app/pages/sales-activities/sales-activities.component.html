@@ -1,0 +1,81 @@
+<div class="page active activities-page">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-history"></i> Sales Activities</h1>
+      <p>Track every lead and opportunity interaction and follow-up</p>
+    </div>
+    <button class="btn btn-primary" type="button" (click)="openCreate()">
+      <i class="pi pi-plus"></i> Add Activity
+    </button>
+  </div>
+
+  <div class="activity-tabs">
+    <button type="button" [class.active]="kind === 'lead'" (click)="selectKind('lead')">Lead Activities</button>
+    <button type="button" [class.active]="kind === 'opportunity'" (click)="selectKind('opportunity')">Opportunity Activities</button>
+  </div>
+
+  <div class="card filters-card">
+    <div class="filters-grid">
+      <div class="form-group">
+        <label>Customer</label>
+        <select class="form-control" [(ngModel)]="customerIdFilter">
+          <option [ngValue]="0">All customers</option>
+          <option *ngFor="let customer of customers()" [ngValue]="customer.id">{{ customer.companyName }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Created By User ID</label>
+        <input class="form-control" [(ngModel)]="createdByUserIdFilter" placeholder="User ID" />
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" type="button" (click)="loadActivities()"><i class="pi pi-filter"></i> Apply</button>
+        <button class="btn btn-ghost" type="button" (click)="clearFilters()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card activities-table-wrapper">
+    <table class="activities-table">
+      <thead><tr><th>Customer</th><th>Type</th><th>Subject</th><th>Activity Date</th><th>Next Follow-up</th><th>Created By</th><th>Actions</th></tr></thead>
+      <tbody>
+        <tr *ngIf="loading()"><td colspan="7" class="table-state"><i class="pi pi-spin pi-spinner"></i> Loading activities...</td></tr>
+        <tr *ngIf="!loading() && !activities().length"><td colspan="7" class="table-state">No activities found.</td></tr>
+        <tr *ngFor="let activity of activities()">
+          <td><strong>{{ activity.customerName }}</strong></td>
+          <td><span class="activity-badge">{{ activity.activityTypeName }}</span></td>
+          <td><strong>{{ activity.subject }}</strong><span class="activity-notes">{{ activity.notes || '-' }}</span></td>
+          <td>{{ activity.activityDate | date:'medium' }}</td>
+          <td>{{ activity.nextFollowUpDate ? (activity.nextFollowUpDate | date:'medium') : '-' }}</td>
+          <td>{{ activity.createdByUserName || activity.createdByUserId }}</td>
+          <td class="actions-cell">
+            <button class="btn btn-xs btn-ghost" type="button" title="Edit" (click)="openEdit(activity)"><i class="pi pi-pencil"></i></button>
+            <button class="btn btn-xs btn-ghost danger-btn" type="button" title="Delete" (click)="deleteTarget = activity"><i class="pi pi-trash"></i></button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div *ngIf="formOpen" class="modal-overlay open" (click)="closeForm()">
+  <div class="modal activity-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header"><span class="modal-title">{{ form.id ? 'Edit' : 'Add' }} {{ kind === 'lead' ? 'Lead' : 'Opportunity' }} Activity</span><button class="modal-close" type="button" (click)="closeForm()"><i class="pi pi-times"></i></button></div>
+    <div class="modal-body"><div class="form-grid activity-form-grid">
+      <div class="form-group full-width"><label>Customer *</label><select class="form-control" [(ngModel)]="form.customerId" [disabled]="!!form.id"><option [ngValue]="0" disabled>Select {{ kind }} customer</option><option *ngFor="let customer of (form.id ? customers() : eligibleCustomers())" [ngValue]="customer.id">{{ customer.companyName }}</option></select><small *ngIf="!form.id" class="field-hint">Only customers currently in {{ kind === 'lead' ? 'Lead' : 'Opportunity' }} status are available.</small></div>
+      <div class="form-group"><label>Activity Type *</label><select class="form-control" [(ngModel)]="form.activityType"><option *ngFor="let type of activityTypes" [ngValue]="type.value">{{ type.label }}</option></select></div>
+      <div class="form-group"><label>Activity Date *</label><input class="form-control" type="datetime-local" [(ngModel)]="form.activityDate" /></div>
+      <div class="form-group full-width"><label>Subject *</label><input class="form-control" [(ngModel)]="form.subject" /></div>
+      <div class="form-group full-width"><label>Notes *</label><textarea class="form-control" rows="3" [(ngModel)]="form.notes"></textarea></div>
+      <div class="form-group full-width"><label>Next Follow-up Date</label><input class="form-control" type="datetime-local" [(ngModel)]="form.nextFollowUpDate" /></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" type="button" [disabled]="saving()" (click)="closeForm()">Cancel</button><button class="btn btn-primary" type="button" [disabled]="saving()" (click)="saveActivity()"><i [class]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i> Save Activity</button></div>
+  </div>
+</div>
+
+<div *ngIf="deleteTarget" class="modal-overlay open" (click)="!saving() && (deleteTarget = null)">
+  <div class="modal delete-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header"><span class="modal-title">Confirm Delete</span><button class="modal-close" type="button" [disabled]="saving()" (click)="deleteTarget = null"><i class="pi pi-times"></i></button></div>
+    <div class="modal-body delete-content"><i class="pi pi-trash"></i><div><p>Delete activity</p><strong>{{ deleteTarget.subject }}</strong><p>This action cannot be undone.</p></div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" type="button" [disabled]="saving()" (click)="deleteTarget = null">Cancel</button><button class="btn btn-danger" type="button" [disabled]="saving()" (click)="confirmDelete()"><i [class]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-trash'"></i> Delete</button></div>
+  </div>
+</div>

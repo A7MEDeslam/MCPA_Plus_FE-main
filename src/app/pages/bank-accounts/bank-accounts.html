@@ -1,0 +1,432 @@
+<div class="account-page">
+
+  <div class="page-header">
+    <div>
+      <h1>Bank Accounts</h1>
+      <p class="subtitle">
+        {{ rows.length }} Accounts
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="loadAll()">
+        <i class="pi pi-refresh"></i>
+        Refresh
+      </button>
+
+      <button class="btn btn-primary" (click)="openCreateDialog()">
+        <i class="pi pi-plus"></i>
+        New Bank Account
+      </button>
+    </div>
+  </div>
+
+  <div class="summary-cards">
+    <div class="summary-card asset">
+      <div class="card-title">Assets</div>
+      <div class="card-value">
+        {{ (totalsByType[1] || 0) }} EGP
+      </div>
+    </div>
+
+    <div class="summary-card liability">
+      <div class="card-title">Liabilities</div>
+      <div class="card-value">
+        {{ (totalsByType[2] || 0) }} EGP
+      </div>
+    </div>
+
+    <div class="summary-card equity">
+      <div class="card-title">Equity</div>
+      <div class="card-value">
+        {{ (totalsByType[5] || 0) }} EGP
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <i class="pi pi-search"></i>
+      <input type="text" placeholder="Search account..." [(ngModel)]="searchTerm">
+    </div>
+
+    <div class="filter-pills">
+      <button *ngFor="let item of typeFilters" class="pill" [class.active]="activeFilter===item.value"
+        (click)="setFilter(item.value)">
+        {{ item.label }}
+      </button>
+    </div>
+
+    <div class="expand-buttons">
+      <button class="link-btn" (click)="expandAll()">
+        Expand All
+      </button>
+
+      <button class="link-btn" (click)="collapseAll()">
+        Collapse
+      </button>
+    </div>
+  </div>
+
+  <div class="error-box" *ngIf="errorMessage">
+    {{ errorMessage }}
+  </div>
+
+  <div class="table-wrapper">
+    <table class="accounts-table">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Nature</th>
+          <th>Level</th>
+          <th>Currency</th>
+          <th>Balance</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let row of visibleRows">
+          <td>
+            <div class="tree-cell" [style.padding-left.px]="row.level * 30">
+              <button *ngIf="row.hasChildren" class="toggle-btn" (click)="toggleExpand(row)">
+                <i class="pi" [class.pi-chevron-right]="!row.expanded" [class.pi-chevron-down]="row.expanded">
+                </i>
+              </button>
+
+              <span *ngIf="!row.hasChildren" class="toggle-space"></span>
+
+              {{ row.code }}
+            </div>
+          </td>
+
+          <td>{{ row.name }}</td>
+
+          <td>
+            <span class="badge" [ngClass]="typeClass[row.type]">
+              {{ typeLabels[row.type] }}
+            </span>
+          </td>
+
+          <td>
+            {{ row.type == 1 || row.type == 3 ? 'Debit' : 'Credit' }}
+          </td>
+
+          <td>{{ row.level + 1 }}</td>
+
+          <td>{{ row.currency || 'EGP' }}</td>
+
+          <td>{{ (row.balance || 0) }} EGP</td>
+
+          <td>
+            <span class="status" [class.inactive]="row.isActive === false">
+              {{ row.isActive === false ? 'Inactive' : 'Active' }}
+            </span>
+          </td>
+
+          <td>
+            <div class="row-actions">
+              <button class="btn-small" (click)="openHistoryDialog(row)">
+                <i class="pi pi-history"></i>
+                History
+              </button>
+
+              <button class="btn-small" (click)="openChildDialog(row)">
+                <i class="pi pi-plus"></i>
+                Child
+              </button>
+
+              <button class="btn-small" (click)="openEditDialog(row)">
+                <i class="pi pi-pencil"></i>
+                Edit
+              </button>
+
+              <button class="btn-small btn-danger" (click)="openDeleteDialog(row)">
+                <i class="pi pi-trash"></i>
+                Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+
+        <tr *ngIf="visibleRows.length == 0">
+          <td colspan="9" class="empty">
+            No Accounts Found
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="dialog-overlay" *ngIf="showCreateDialog" (click)="closeCreateDialog()">
+
+  <div class="dialog" (click)="$event.stopPropagation()">
+    <div class="dialog-header">
+      <h2>Create Bank Account</h2>
+
+      <button class="icon-btn" (click)="closeCreateDialog()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <form [formGroup]="createForm" (ngSubmit)="submitCreate()">
+
+      <div class="field">
+        <label>Code</label>
+        <input type="text" formControlName="code">
+      </div>
+
+      <div class="field">
+        <label>Name</label>
+        <input type="text" formControlName="name">
+      </div>
+
+      <div class="field">
+        <label>Type</label>
+        <select formControlName="type">
+          <option [value]="1">Asset</option>
+          <option [value]="2">Liability</option>
+          <option [value]="3">Expense</option>
+          <option [value]="4">Revenue</option>
+          <option [value]="5">Equity</option>
+        </select>
+      </div>
+
+      <div class="parent-display" *ngIf="selectedParent">
+        <strong>Parent Hierarchy:</strong>
+        {{ selectedParent.code }} - {{ selectedParent.name }}
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeCreateDialog()">
+          Cancel
+        </button>
+
+        <button type="submit" class="btn btn-primary">
+          {{ submitting ? 'Creating...' : 'Create Account' }}
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<div class="dialog-overlay" *ngIf="showChildDialog" (click)="closeCreateDialog()">
+
+  <div class="dialog" (click)="$event.stopPropagation()">
+
+    <div class="dialog-header">
+      <h2>Add Child Account</h2>
+
+      <button class="icon-btn" (click)="closeCreateDialog()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <form [formGroup]="createForm" (ngSubmit)="submitCreate()">
+
+      <div class="parent-display" *ngIf="selectedParent">
+        <strong>Parent Account:</strong>
+        {{ selectedParent.code }} - {{ selectedParent.name }}
+      </div>
+
+      <div class="field">
+        <label>Name</label>
+        <input formControlName="name">
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeCreateDialog()">
+          Cancel
+        </button>
+
+        <button type="submit" class="btn btn-primary">
+          {{ submitting ? 'Creating...' : 'Create Child' }}
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+<div class="dialog-overlay" *ngIf="showEditDialog" (click)="closeEditDialog()">
+
+  <div class="dialog" (click)="$event.stopPropagation()">
+
+    <div class="dialog-header">
+      <h2>Edit Bank Account</h2>
+
+      <button class="icon-btn" (click)="closeEditDialog()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <form [formGroup]="editForm" (ngSubmit)="submitEdit()">
+
+      <div class="field">
+        <label>Code</label>
+        <input type="text" formControlName="code">
+      </div>
+
+      <div class="field">
+        <label>Name</label>
+        <input type="text" formControlName="name">
+      </div>
+
+      <div class="field">
+        <label>Type</label>
+        <select formControlName="type">
+          <option [value]="1">Asset</option>
+          <option [value]="2">Liability</option>
+          <option [value]="3">Expense</option>
+          <option [value]="4">Revenue</option>
+          <option [value]="5">Equity</option>
+        </select>
+      </div>
+
+      <div class="field field-checkbox">
+        <label>
+          <input type="checkbox" formControlName="isActive">
+          Active
+        </label>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeEditDialog()">
+          Cancel
+        </button>
+
+        <button type="submit" class="btn btn-primary">
+          {{ submitting ? 'Saving...' : 'Save Changes' }}
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+<div class="dialog-overlay " *ngIf="showDeleteDialog" (click)="closeDeleteDialog()">
+
+  <div class="dialog dialog-small" (click)="$event.stopPropagation()">
+
+    <div class="dialog-header">
+      <h2>Delete Bank Account</h2>
+
+      <button class="icon-btn" (click)="closeDeleteDialog()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <p class="confirm-text" *ngIf="selectedAccount">
+      Are you sure you want to delete <strong>{{ selectedAccount.code }} - {{ selectedAccount.name }}</strong>?
+      This action cannot be undone.
+    </p>
+
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" (click)="closeDeleteDialog()">
+        Cancel
+      </button>
+
+      <button type="button" class="btn btn-danger" (click)="confirmDelete()">
+        {{ deleting ? 'Deleting...' : 'Delete' }}
+      </button>
+    </div>
+
+  </div>
+</div>
+<div class="dialog-overlay" *ngIf="showHistoryDialog" (click)="closeHistoryDialog()">
+
+  <div class="dialog dialog-large" (click)="$event.stopPropagation()">
+
+    <div class="dialog-header">
+      <h2>
+        Account History
+        <span *ngIf="historyAccount" class="dialog-subtitle">
+          {{ historyAccount.code }} - {{ historyAccount.name }}
+        </span>
+      </h2>
+
+      <button class="icon-btn" (click)="closeHistoryDialog()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <div class="history-loading" *ngIf="historyLoading">
+      Loading...
+    </div>
+
+    <div class="history-summary" *ngIf="!historyLoading">
+      <div class="summary-item">
+        <span class="summary-label">Total Debit</span>
+        <span class="summary-value">{{ historyTotalDebit }} EGP</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Total Credit</span>
+        <span class="summary-value">{{ historyTotalCredit }} EGP</span>
+      </div>
+      <div class="summary-item net" [class.negative]="historyNetTotal < 0">
+        <span class="summary-label">Net Balance</span>
+        <span class="summary-value">{{ historyNetTotal }} EGP</span>
+      </div>
+    </div>
+
+
+    <div class="table-wrapper" *ngIf="!historyLoading">
+      <table class="accounts-table">
+        <thead>
+          <tr>
+            <th>Entry #</th>
+            <th>Posting Date</th>
+            <th>Document Date</th>
+            <th>Reference</th>
+            <th>Note</th>
+            <th>Description</th>
+            <th>Debit</th>
+            <th>Credit</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let entry of historyRows">
+            <td>{{ entry.entryNumber }}</td>
+            <td>{{ entry.postingDate | date:'yyyy-MM-dd' }}</td>
+            <td>{{ entry.documentDate | date:'yyyy-MM-dd' }}</td>
+            <td>{{ entry.reference }}</td>
+            <td>{{ entry.note }}</td>
+            <td>{{ entry.description }}</td>
+            <td>{{ entry.debit || 0 }} EGP</td>
+            <td>{{ entry.credit || 0 }} EGP</td>
+          </tr>
+
+          <tr *ngIf="historyRows.length === 0">
+            <td colspan="8" class="empty">
+              No transactions found
+            </td>
+          </tr>
+        </tbody>
+
+        <tfoot *ngIf="historyRows.length > 0">
+          <tr>
+            <td colspan="6"><strong>Totals</strong></td>
+            <td><strong>{{ historyTotalDebit }} EGP</strong></td>
+            <td><strong>{{ historyTotalCredit }} EGP</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" (click)="closeHistoryDialog()">
+        Close
+      </button>
+    </div>
+
+  </div>
+</div>

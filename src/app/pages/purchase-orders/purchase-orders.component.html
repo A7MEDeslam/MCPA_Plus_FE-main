@@ -1,0 +1,356 @@
+<div class="page active" id="page-po">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-file" style="margin-right: 8px;"></i>Purchase Orders</h1>
+      <p>Create and manage raw material procurement orders</p>
+    </div>
+    <button *ngIf="canCreate" class="btn btn-primary" (click)="modals['modal-po'] = true">+ New PO</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab" [class.active]="currentTab() === 'all'"
+      (click)="currentTab.set('all'); pagination.currentPage.set(1)">All</div>
+    <div class="tab" [class.active]="currentTab() === 'pending'"
+      (click)="currentTab.set('pending'); pagination.currentPage.set(1)">Pending Approval
+    </div>
+    <div class="tab" [class.active]="currentTab() === 'active'"
+      (click)="currentTab.set('active'); pagination.currentPage.set(1)">Approved & Active
+    </div>
+    <div class="tab" [class.active]="currentTab() === 'completed'"
+      (click)="currentTab.set('completed'); pagination.currentPage.set(1)">Received /
+      Completed</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Purchase Orders</span>
+      <input class="form-control" style="width:200px" placeholder="Search..." [(ngModel)]="poSearch"
+        (ngModelChange)="pagination.currentPage.set(1)" />
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>PO #</th>
+            <th>Date</th>
+            <th>Supplier</th>
+            <th>Items</th>
+            <th>Total Qty</th>
+            <th>Action By</th>
+            <th>Action At</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngIf="filteredPOs.length; else noPOs">
+            <tr *ngFor="let p of pagedPOs">
+              <td><b>{{p.poNumber}}</b></td>
+              <td>{{p.orderDate | date:'shortDate'}}</td>
+              <td>{{p.supplierName}}</td>
+              <td>{{p.itemsCount}} Items</td>
+              <td>{{p.totalOrderedQty | number}}</td>
+              <td>{{p.actionByName || '-'}}</td>
+              <td>{{p.actionAt ? (p.actionAt | date:'short') : '-'}}</td>
+              <td>
+                <span class="badge" [class]="statusBadgeClass(p.status)">{{p.status}}</span>
+              </td>
+              <td>
+                <div class="flex-gap">
+                  <button class="btn btn-xs btn-ghost btn-icon" title="Details" (click)="showPODetails(p.id)"><i
+                      class="pi pi-info-circle"></i></button>
+
+                  <button class="btn btn-xs btn-ghost btn-icon" title="Edit"
+                    *ngIf="canCreate && (p.status === 'Pending' || p.status === 'AccountantApproved')"
+                    (click)="editPO(p.id)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button class="btn btn-xs btn-danger" title="Delete" *ngIf="canCreate && p.status === 'Pending'"
+                    (click)="deletePO(p.id)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                  <button class="btn btn-xs btn-amber" *ngIf="p.status === 'Pending' && isAccountant"
+                    (click)="accountantApprovePO(p.id)">Approve</button>
+                  <!-- CEO approves Pending or AccountantApproved POs -->
+                  <button class="btn btn-xs btn-amber"
+                    *ngIf="(p.status === 'Pending' || p.status === 'AccountantApproved') && isCEO"
+                    (click)="approvePO(p.id)">Approve</button>
+                  <!-- Reject: Accountant can reject Pending, CEO can reject Pending or AccountantApproved -->
+                  <button class="btn btn-xs btn-danger"
+                    *ngIf="(p.status === 'Pending' && (isCEO || isAccountant)) || (p.status === 'AccountantApproved' && isCEO)"
+                    (click)="openRejectModal(p.id)">
+                    Reject
+                  </button>
+                  <button class="btn btn-xs btn-primary"
+                    *ngIf="(p.status === 'Approved' || p.status === 'Partial') && canReceive"
+                    (click)="quickReceive(p.id)">Receive</button>
+                  <span class="text-muted"
+                    *ngIf="p.status !== 'Pending' && p.status !== 'AccountantApproved' && p.status !== 'Approved' && p.status !== 'Partial'">Done</span>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+          <ng-template #noPOs>
+            <tr>
+              <td colspan="9" class="empty">No purchase orders found</td>
+            </tr>
+          </ng-template>
+        </tbody>
+      </table>
+    </div>
+    <app-pagination [totalItems]="filteredPOs.length" [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()" (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+</div>
+
+<ng-container *ngIf="poDetailsOpen && selectedPODetails">
+  <div class="modal-overlay open" (click)="closeModalIfOverlay($event, 'modal-po-details')">
+    <div class="modal" style="max-width:1000px; width:95%">
+      <div class="modal-header">
+        <span class="modal-title">Purchase Order Details</span>
+        <button class="modal-close" (click)="poDetailsOpen = false"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+          <div><strong>PO #</strong>
+            <div>{{selectedPODetails.poNumber}}</div>
+          </div>
+          <div><strong>Status</strong>
+            <div>{{selectedPODetails.status}}</div>
+          </div>
+          <div><strong>Supplier</strong>
+            <div>{{selectedPODetails.supplierName}}</div>
+          </div>
+          <div><strong>Order Date</strong>
+            <div>{{selectedPODetails.orderDate | date:'shortDate'}}</div>
+          </div>
+          <div><strong>Delivery Date</strong>
+            <div>{{selectedPODetails.deliveryDate ? (selectedPODetails.deliveryDate | date:'shortDate') : '-'}}</div>
+          </div>
+          <div><strong>Total Qty</strong>
+            <div>{{selectedPODetails.totalOrderedQty || getPOTotalQuantity(selectedPODetails.items)}}</div>
+          </div>
+          <div><strong>Total Remaining Qty</strong>
+            <div>{{selectedPODetails.totalRemainingQty ?? getPOTotalRemainingQty(selectedPODetails.items) | number}}
+            </div>
+          </div>
+          <div><strong>Total Remaining Amount</strong>
+            <div style="font-weight:600; color:#c05621;">
+              {{selectedPODetails.totalRemainingAmount ?? getPOTotalRemainingAmount(selectedPODetails.items) |
+              number:'1.2-2'}} EGP
+            </div>
+          </div>
+          <div><strong>Total Amount</strong>
+            <div style="font-weight:600; color:#2d7d46;">{{getPOTotalAmount(selectedPODetails.items) | number:'1.2-2'}}
+              EGP</div>
+          </div>
+          <div><strong>Action By</strong>
+            <div>{{selectedPODetails.actionByName || '-'}}</div>
+          </div>
+          <div><strong>Action At</strong>
+            <div>{{selectedPODetails.actionAt ? (selectedPODetails.actionAt | date:'short') : '-'}}</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <strong>Notes</strong>
+          <p style="margin:8px 0 0; color:#555;">{{selectedPODetails.notes || 'No notes provided.'}}</p>
+        </div>
+        <div style="margin-top:20px; overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; padding:8px;">Material</th>
+                <th style="padding:8px;">Ordered</th>
+                <th style="padding:8px;">Received</th>
+                <th style="padding:8px;">Remaining</th>
+                <th style="padding:8px;">Unit Price</th>
+                <th style="padding:8px;">Total</th>
+                <th style="padding:8px;">Remaining Amount</th>
+                <th style="padding:8px;">Current Stock</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- <tr *ngIf="!selectedPODetails.items">
+                <td colspan="6" style="text-align:center; padding: 16px; color: #888;">
+                  <i class="pi pi-spin pi-spinner" style="margin-right: 8px;"></i>Loading items...
+                </td>
+              </tr> -->
+              <tr *ngIf="!selectedPODetails.items">
+              <td colspan="8" style="text-align:center; padding: 16px; color: #888;">
+                  <i class="pi pi-spin pi-spinner" style="margin-right: 8px;"></i>Loading items...
+                </td>
+              </tr>
+              <tr *ngFor="let item of selectedPODetails.items || []">
+                <td style="padding:8px;">{{item.rawMaterialName || item.rawMaterial?.name}}</td>
+                <td style="padding:8px;">{{item.orderedQty || item.qty || 0}}</td>
+                <td style="padding:8px;">{{item.receivedQty ?? 0}}</td>
+                <td style="padding:8px;">{{item.remainingQty ?? ((item.orderedQty ?? item.qty ?? 0) - (item.receivedQty
+                  ?? 0))}}</td>
+                <td style="padding:8px;">{{item.unitPrice ?? item.price ?? 0 | number:'1.2-2'}}</td>
+                <td style="padding:8px;">{{((item.orderedQty ?? item.qty ?? 0) * (item.unitPrice ?? item.price ?? 0)) |
+                  number:'1.2-2'}} EGP</td>
+                <td style="padding:8px; color:#c05621;">
+                  {{ (item.remainingQty ?? ((item.orderedQty ?? item.qty ?? 0) - (item.receivedQty ?? 0))) *
+                  (item.unitPrice ??
+                  item.price ?? 0) | number:'1.2-2' }} EGP
+                </td>
+                <td style="padding:8px; font-weight:600; color:#2b6cb0;">
+                  {{ item.currentStock ?? 0 | number }}
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr style="border-top:2px solid #eee; font-weight:bold;">
+              <td colspan="6" style="padding:8px; text-align:right;">Grand Total:</td>
+                <td style="padding:8px; color:#2d7d46;">{{getPOTotalAmount(selectedPODetails.items) | number:'1.2-2'}}
+                  EGP</td>
+                <td style="padding:8px; color:#c05621;">{{selectedPODetails.totalRemainingAmount ??
+                  getPOTotalRemainingAmount(selectedPODetails.items) | number:'1.2-2'}} EGP</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" (click)="poDetailsOpen = false">Close</button>
+      </div>
+    </div>
+  </div>
+</ng-container>
+
+<!-- New PO Modal -->
+<ng-container *ngIf="modals['modal-po']">
+  <div class="modal-overlay open" (click)="closeModalIfOverlay($event, 'modal-po')">
+    <div class="modal" style=" width:85%">
+      <div class="modal-header">
+        <span class="modal-title">
+          {{ editingPOId ? 'Edit Purchase Order' : 'New Purchase Order' }}
+        </span>
+        <button class="modal-close" (click)="closePOModal()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- Header fields -->
+        <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label>Supplier</label>
+            <app-searchable-select [(ngModel)]="poForm.supplier" [options]="supplierOptions()"
+              placeholder="Select supplier" searchPlaceholder="Search suppliers..." [allowEmpty]="true"
+              emptyLabel="-- Select --">
+            </app-searchable-select>
+          </div>
+          <div class="form-group">
+            <label>Order Date</label>
+          <input class="form-control" type="date" [(ngModel)]="poForm.date" (ngModelChange)="onOrderDateChange()" />
+          </div>
+        <div class="form-group">
+          <label>Delivery Date</label>
+          <input class="form-control" type="date" [(ngModel)]="poForm.delivery" [min]="poForm.date" />
+          <small *ngIf="poForm.delivery && poForm.date && poForm.delivery < poForm.date" style="color:#e53e3e;">
+            Delivery date cannot be before the order date.
+          </small>
+        </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <input class="form-control" placeholder="Optional..." [(ngModel)]="poForm.notes" />
+          </div>
+        </div>
+
+        <!-- Items Section -->
+        <div style="margin-top:20px">
+          <div class="flex-between" style="margin-bottom:10px">
+            <label style="font-weight:600; font-size:14px;">Order Items</label>
+          </div>
+
+          <div style="overflow-x:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Raw Material</th>
+                  <th>Quantity</th>
+                  <th>Unit Price (EGP)</th>
+                  <th>Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of poForm.items; let i = index">
+                  <td style="width:40px; color:#888;">{{i + 1}}</td>
+                  <td style="min-width:200px">
+                    <app-searchable-select [(ngModel)]="item.rawMaterialId" [options]="rawMaterialOptions()"
+                      placeholder="Select material" searchPlaceholder="Search materials..." [allowEmpty]="true"
+                      emptyLabel="-- Select --">
+                    </app-searchable-select>
+                  </td>
+                  <td style="min-width:110px">
+                    <input class="form-control" type="number" min="1" [(ngModel)]="item.qty" placeholder="0" />
+                  </td>
+                  <td style="min-width:130px">
+                    <input class="form-control" type="number" min="0" step="0.01" [(ngModel)]="item.price"
+                      placeholder="0.00" />
+                  </td>
+                  <td style="min-width:110px; color:#555;">
+                    {{ ((item.qty || 0) * (item.price || 0)) | number:'1.2-2' }} EGP
+                  </td>
+                  <td style="width:40px; text-align:center">
+                    <button class="btn btn-xs btn-ghost" type="button" (click)="removeItem(i)"
+                      [disabled]="poForm.items.length === 1" style="color:#e53e3e; font-size:16px; padding:2px 6px;">
+                      <i class="pi pi-times"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3"></td>
+                  <td style="font-weight:600; font-size:13px;">Grand Total</td>
+                  <td style="font-weight:700; color:#2d7d46;">{{ grandTotal() | number:'1.2-2' }} EGP</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div class="d-flex justify-content-end ">
+            <button class="btn btn-xs btn-primary" type="button" (click)="addItem()">+ Add Item</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="closePOModal()">
+          Cancel
+        </button>
+        <button class="btn btn-primary" (click)="savePO()">
+          {{ editingPOId ? 'Update PO' : 'Create PO' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</ng-container>
+
+
+<!-- Reject Modal -->
+<ng-container *ngIf="rejectModalOpen">
+  <div class="modal-overlay open" (click)="closeModalIfOverlay($event, 'modal-reject')">
+    <div class="modal" style="max-width:420px; width:95%">
+      <div class="modal-header">
+        <span class="modal-title">Reject Purchase Order</span>
+        <button class="modal-close" (click)="rejectModalOpen = false"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Reason <span style="color:#888; font-size:12px;">(optional)</span></label>
+          <input class="form-control" placeholder="Enter rejection reason..." [(ngModel)]="rejectReason" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="rejectModalOpen = false">Cancel</button>
+        <button class="btn btn-danger" (click)="confirmReject()">Confirm Reject</button>
+      </div>
+    </div>
+  </div>
+</ng-container>

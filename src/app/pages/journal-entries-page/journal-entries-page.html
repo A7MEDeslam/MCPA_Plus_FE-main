@@ -1,0 +1,62 @@
+<div class="page-header">
+  <div>
+    <h1>Journal Entries</h1>
+    <p>{{ filteredEntries.length }} entries</p>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn btn-secondary mr-2" (click)="addCostCenter()">
+      <i class="pi pi-plus"></i>
+      Add Cost Center
+    </button>
+
+    <button class="btn btn-primary ml-px" (click)="addNew()">
+      <i class="pi pi-plus"></i>
+      New Journal Entry
+    </button>
+  </div>
+</div>
+
+<!-- COST CENTER DIALOG -->
+<div class="dialog-backdrop" *ngIf="showCostCenterDialog">
+  <div class="dialog">
+    <app-cost-centers (saved)="costCenterSaved()" (cancel)="costCenterCancelled()">
+    </app-cost-centers>
+  </div>
+</div>
+
+
+<!-- FORM DIALOG (Create or Edit) -->
+<div class="dialog-backdrop" *ngIf="showForm">
+  <div class="dialog large">
+    <app-journal-entry-form [entry]="entryToEdit" (cancel)="cancelForm()" (saved)="saved()">
+    </app-journal-entry-form>
+  </div>
+</div>
+
+<!-- TABLE + FILTERS -->
+<div *ngIf="!showForm">
+
+  <div class="filters">
+    <input type="text" [(ngModel)]="search" (input)="searchChanged()" placeholder="Search document..." />
+
+    <div class="chips">
+      <button *ngFor="let s of statuses" (click)="filterByStatus(s)" [class.active]="selectedStatus === s">
+        {{ s }}
+      </button>
+    </div>
+  </div>
+
+  <app-journal-entry-table [entries]="filteredEntries" (view)="view($event)" (edit)="editEntry($event)"
+    (cancelEntry)="cancelEntry($event)">
+  </app-journal-entry-table>
+
+</div>
+
+<!-- DETAILS DIALOG -->
+<div class="dialog-backdrop" *ngIf="showDetails">
+  <div class="dialog large">
+    <app-journal-entry-details [entry]="selectedEntry!" (close)="closeDetails()">
+    </app-journal-entry-details>
+  </div>
+</div>

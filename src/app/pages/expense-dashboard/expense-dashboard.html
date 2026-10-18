@@ -1,0 +1,226 @@
+<div class="account-page">
+  <div class="page-header">
+    <div>
+      <h1>Expenses Dashboard</h1>
+      <p class="subtitle">Overview of expense reports, by category, account, and status</p>
+    </div>
+
+    <button type="button" class="btn btn-secondary" *ngIf="data()" (click)="printReport()">
+      <i class="pi pi-print"></i>
+      Print Report
+    </button>
+  </div>
+
+  <div class="error-box" *ngIf="errorMessage()">
+    {{ errorMessage() }}
+  </div>
+
+  <!-- FILTERS -->
+  <div class="card-edit">
+    <div class="card-header">
+      <span class="card-title">Filters</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>From date</label>
+          <input type="date" class="form-control" [(ngModel)]="fromDate" name="fromDate" />
+        </div>
+
+        <div class="form-group">
+          <label>To date</label>
+          <input type="date" class="form-control" [(ngModel)]="toDate" name="toDate" />
+        </div>
+
+        <div class="form-group">
+          <label>Category ID</label>
+          <input type="number" class="form-control" [(ngModel)]="categoryId" name="categoryId" placeholder="e.g. 2" />
+        </div>
+
+      <div class="form-group">
+        <label>Account</label>
+        <app-searchable-select [options]="accountOptions()" [(ngModel)]="accountId" name="accountId" [allowEmpty]="true"
+          emptyLabel="-- All Accounts --" placeholder="-- All Accounts --" searchPlaceholder="Search accounts...">
+        </app-searchable-select>
+      </div>
+
+        <!-- <div class="form-group">
+          <label>Employee</label>
+          <input type="text" class="form-control" [(ngModel)]="employeeId" name="employeeId"
+            placeholder="Employee name/ID" />
+        </div> -->
+
+        <!-- <div class="form-group">
+          <label>Status</label>
+          <select class="form-control" [(ngModel)]="status" name="status">
+            <option *ngFor="let s of statusOptions" [ngValue]="s.value">{{ s.label }}</option>
+          </select>
+        </div> -->
+      </div>
+
+      <div class="form-actions" style="margin-top: 16px">
+        <button type="button" class="btn btn-primary" [disabled]="isLoading()" (click)="runReport()">
+          <i class="pi pi-spin pi-spinner" *ngIf="isLoading()"></i>
+          <i class="pi pi-search" *ngIf="!isLoading()"></i>
+          Run Report
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="resetFilters()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <ng-container *ngIf="data() as d">
+
+
+<div class="charts-row summary-row">
+
+  <div class="summary-grid">
+    <div class="stat-card total">
+      <div class="stat-icon"><i class="pi pi-wallet"></i></div>
+      <div class="stat-body">
+        <div class="stat-label">Total Expenses</div>
+        <div class="stat-value">{{ d.summary.totalExpenses | number }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card approved">
+      <div class="stat-icon"><i class="pi pi-check-circle"></i></div>
+      <div class="stat-body">
+        <div class="stat-label">Approved</div>
+        <div class="stat-value">{{ d.summary.approvedAmount | number }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card pending">
+      <div class="stat-icon"><i class="pi pi-clock"></i></div>
+      <div class="stat-body">
+        <div class="stat-label">Pending</div>
+        <div class="stat-value">{{ d.summary.pendingAmount | number }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card assigned">
+      <div class="stat-icon"><i class="pi pi-file-check"></i></div>
+      <div class="stat-body">
+        <div class="stat-label">Assigned To Check</div>
+        <div class="stat-value">{{ d.summary.assignedToCheckAmount | number }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card transactions">
+      <div class="stat-icon"><i class="pi pi-list"></i></div>
+      <div class="stat-body">
+        <div class="stat-label">Transactions</div>
+        <div class="stat-value">{{ d.summary.totalTransactions }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card chart-col">
+    <div class="card-header">
+      <span class="card-title">By Status</span>
+    </div>
+    <div class="card-body">
+      <div class="status-chips">
+        <div class="status-chip" *ngFor="let s of d.byStatus" [ngClass]="statusClass(s.status)">
+          <span class="status-name">{{ s.status }}</span>
+          <span class="status-count">Count: {{ s.count }} </span>
+          <span class="status-amount">Total: {{ s.totalAmount | number }}</span>
+        </div>
+      </div>
+      <div class="empty" *ngIf="d.byStatus.length === 0">No status data.</div>
+    </div>
+  </div>
+
+</div>
+
+
+
+
+<div class="charts-row">
+
+  <div class="card chart-col">
+    <div class="card-header">
+      <span class="card-title">By Category</span>
+    </div>
+    <div class="card-body">
+      <div class="bar-row" *ngFor="let c of d.byCategory">
+        <div class="bar-label">
+          <span>{{ c.categoryName }}</span>
+          <span class="text-muted">Count: {{ c.count }}  —Total: {{ c.totalAmount | number }}</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" [style.width.%]="categoryPercent(c.totalAmount)"></div>
+        </div>
+      </div>
+      <div class="empty" *ngIf="d.byCategory.length === 0">No category data.</div>
+    </div>
+  </div>
+
+  <div class="card chart-col">
+    <div class="card-header">
+      <span class="card-title">By Account</span>
+    </div>
+    <div class="card-body">
+      <div class="bar-row" *ngFor="let a of d.byAccount">
+        <div class="bar-label">
+          <span>{{ a.accountCode }} - {{ a.accountName }}</span>
+          <span class="text-muted">Count: {{ a.count }}  — Total: {{ a.totalAmount | number }}</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill account" [style.width.%]="accountPercent(a.totalAmount)"></div>
+        </div>
+      </div>
+      <div class="empty" *ngIf="d.byAccount.length === 0">No account data.</div>
+    </div>
+  </div>
+
+</div>
+
+
+
+    <!-- RECENT EXPENSES -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Recent Expenses</span>
+      </div>
+      <div class="card-body">
+        <div class="table-wrapper">
+          <table class="accounts-table">
+            <thead>
+              <tr>
+                <th>Document #</th>
+                <th>Employee</th>
+                <th>Date</th>
+                <th>Account</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th class="num">Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let e of d.recentExpenses">
+                <td>{{ e.documentNumber }}</td>
+                <td>{{ e.employeeName }}</td>
+                <td>{{ e.date | date:'yyyy-MM-dd' }}</td>
+                <td>{{ e.accountCode }}</td>
+                <td>{{ e.categoryName }}</td>
+                <td>{{ e.description }}</td>
+                <td class="num">{{ e.amount | number }} {{ e.currency }}</td>
+                <td>
+                  <span class="status" [ngClass]="statusClass(e.status)">{{ e.status }}</span>
+                </td>
+              </tr>
+              <tr *ngIf="d.recentExpenses.length === 0">
+                <td colspan="8" class="empty">No recent expenses.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </ng-container>
+</div>

@@ -1,0 +1,3 @@
+.page-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+#thirdwh-stats .stat-card { min-width: 180px; }
+.card table th, .card table td { white-space: nowrap; }

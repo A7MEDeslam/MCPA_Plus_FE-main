@@ -1,0 +1,106 @@
+<div class="page active" id="page-suppliers">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-users" style="margin-right: 8px;"></i>Suppliers Management</h1>
+      <p>Manage supplier directory and contact information</p>
+    </div>
+    <button *ngIf="canCreateSupplier" class="btn btn-primary" (click)="modalOpen = true">+ New Supplier</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Registered Suppliers</span></div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Address</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (pagedSuppliers().length) {
+          @for (s of pagedSuppliers(); track s.id) {
+          <tr>
+            <td><b>{{s.name}}</b></td>
+            <td>{{s.phone || '-'}}</td>
+            <td>{{s.address || '-'}}</td>
+            <td><span class="badge" [class]="s.isActive ? 'badge-received' : 'badge-cancelled'">{{s.isActive ? 'Active'
+                : 'Inactive'}}</span></td>
+            <td>
+            <button *ngIf="canDeleteSupplier" class="btn btn-ghost" (click)="openDelete(s)">
+              <i class="pi pi-trash"></i> Delete
+            </button>
+            </td>
+          </tr>
+          }
+          } @else {
+          <tr>
+            <td colspan="5" class="empty">No suppliers found</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pagination [totalItems]="masterData.SUPPLIERS().length" [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()" (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+</div>
+
+@if (modalOpen) {
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">New Supplier</span>
+      <button class="modal-close" (click)="closeModal()">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Supplier Name *</label>
+          <input class="form-control" [class.invalid]="errors['name']" placeholder="e.g. EgySteel Co" maxlength="100"
+            [(ngModel)]="form.name" (input)="onNameInput($event)" />
+          <small class="error-text" *ngIf="errors['name']">{{ errors['name'] }}</small>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input class="form-control" [class.invalid]="errors['phone']" type="tel" inputmode="tel" maxlength="13"
+            placeholder="e.g. 01012345678" [(ngModel)]="form.phone" (input)="onPhoneInput($event)" />
+          <small class="error-text" *ngIf="errors['phone']">{{ errors['phone'] }}</small>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label>Address</label>
+        <input class="form-control" placeholder="Full address" [(ngModel)]="form.address" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="closeModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="saveSupplier()">Save Supplier</button>
+    </div>
+  </div>
+</div>
+}
+@if (deleteOpen) {
+<div class="modal-overlay open" (click)="closeDelete()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title"><i class="pi pi-exclamation-triangle"></i> Delete Supplier</span>
+      <button class="modal-close" (click)="closeDelete()">x</button>
+    </div>
+    <div class="modal-body">
+      <p>Are you sure you want to delete <b>{{ supplierToDelete?.name }}</b>?</p>
+      <p class="warning-text">This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" [disabled]="isDeleting" (click)="closeDelete()">Cancel</button>
+      <button class="btn btn-danger" [disabled]="isDeleting" (click)="confirmDelete()">
+        {{ isDeleting ? 'Deleting...' : 'Delete' }}
+      </button>
+    </div>
+  </div>
+</div>
+}

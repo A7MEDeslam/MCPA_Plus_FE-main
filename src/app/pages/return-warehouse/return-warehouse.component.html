@@ -1,0 +1,819 @@
+<div class="page active" id="page-returnwh">
+  <div class="page-header" *ngIf="!embedded">
+    <h1><i class="pi pi-refresh"></i> {{ isAllReturnsPage() ? 'All Returns' : 'Returns Operations' }}</h1>
+    <p>{{ isAllReturnsPage() ? 'One registry for finished goods and semi-finished returns' : 'Log, receive, and process finished and semi-finished returns' }}</p>
+  </div>
+
+  <!-- Stats Deck -->
+  <div class="stat-grid" *ngIf="!embedded">
+    <div class="stat-card">
+      <div class="stat-label">Total Returned Log</div>
+      <div class="stat-value">{{ totalReturnsCount() }}</div>
+      <div class="stat-sub">Registered cases</div>
+    </div>
+    <div class="stat-card" [class.amber]="pendingApprovalsCount() > 0" [class.navy]="pendingApprovalsCount() === 0">
+      <div class="stat-label">Pending CEO Approvals</div>
+      <div class="stat-value">{{ pendingApprovalsCount() }}</div>
+      <div class="stat-sub">Scrap requests waiting</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Resolved returns</div>
+      <div class="stat-value">{{ resolvedCount() }}</div>
+      <div class="stat-sub">Units successfully processed</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">CEO Approved Scraps</div>
+      <div class="stat-value">{{ scrappedCount() }}</div>
+      <div class="stat-sub">Damaged beyond repair</div>
+    </div>
+  </div>
+
+  <!-- Tab Buttons -->
+  <div class="tabs-container">
+    <div class="tabs-header" *ngIf="!isAllReturnsPage()">
+      <button class="tab-btn" *ngIf="!embedded" [class.active]="activeTab() === 'logs'" (click)="setTab('logs')">
+        <i class="pi pi-list"></i> Returns Registry
+      </button>
+      <button *ngIf="canCreate() && !isAllReturnsPage() && !embedded" class="tab-btn" [class.active]="activeTab() === 'returnToWarehouse'"
+        (click)="setTab('returnToWarehouse')">
+        <i class="pi pi-inbox"></i> Return to Warehouse
+      </button>
+      <button *ngIf="canCreate() && !isAllReturnsPage()" class="tab-btn" [class.active]="activeTab() === 'new'" (click)="setTab('new')">
+        <i class="pi pi-plus-circle"></i> Log Return
+      </button>
+    </div>
+
+    <!-- TAB 1: RETURNS LOGS -->
+    <div class="tab-content" *ngIf="activeTab() === 'logs' && !embedded">
+      <div class="card">
+        <div class="card-header flex-between">
+          <span class="card-title">{{ isAllReturnsPage() ? 'All Returns Registry' : 'Returns Operations Queue' }}</span>
+          <div class="flex-gap">
+            <button type="button" class="btn btn-sm btn-ghost" (click)="toggleSortDirection()"
+              [title]="sortDirection() === 'desc' ? 'Newest first' : 'Oldest first'">
+              <i class="pi" [class.pi-sort-amount-down]="sortDirection() === 'desc'"
+                [class.pi-sort-amount-up]="sortDirection() === 'asc'"></i>
+              {{ sortDirection() === 'desc' ? 'Newest first' : 'Oldest first' }}
+            </button>
+            <input class="form-control" style="width: 280px" placeholder="Search returns registry..."
+              [ngModel]="returnsSearchText()"
+              (ngModelChange)="returnsSearchText.set($event); pagination.currentPage.set(1)" />
+          </div>
+        </div>
+
+        <div class="return-type-filter" role="group" aria-label="Filter returns by product type">
+          <button type="button" class="filter-chip" [class.active]="returnTypeFilter() === 'all'"
+            (click)="setReturnTypeFilter('all')">
+            All Returns <span>{{ returnService.returns().length }}</span>
+          </button>
+          <button type="button" class="filter-chip" [class.active]="returnTypeFilter() === 'finished'"
+            (click)="setReturnTypeFilter('finished')">
+            Finished Goods <span>{{ returnService.returns().filter(r => getReturnType(r) === 'finished').length }}</span>
+          </button>
+          <button type="button" class="filter-chip" [class.active]="returnTypeFilter() === 'semi'"
+            (click)="setReturnTypeFilter('semi')">
+            Semi-Finished <span>{{ returnService.returns().filter(r => getReturnType(r) === 'semi').length }}</span>
+          </button>
+        </div>
+
+        <div style="overflow-x: auto">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Serial #</th>
+                <th>Product name</th>
+                <th>Return type</th>
+                <th>Condition</th>
+                <th>Planned Action</th>
+                <th>Approval</th>
+                <th>Approved By</th>
+                <th>Status</th>
+                <th>Registered date</th>
+                <th>Created By</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <ng-container *ngIf="filteredReturns().length > 0; else noReturns">
+                <ng-container *ngFor="let r of pagedReturns()">
+                  <tr>
+                    <td>
+                      <button class="btn btn-xs btn-ghost toggle-details-btn" (click)="toggleRowExpansion(r.id)"
+                        *ngIf="r.recoveredMaterials.length > 0 || r.maintenanceMaterials.length > 0">
+                        <i class="pi" [class.pi-chevron-down]="expandedReturnId() === r.id"
+                          [class.pi-chevron-right]="expandedReturnId() !== r.id"></i>
+                      </button>
+                    </td>
+                    <td><b>{{ r.serial }}</b></td>
+                    <td>
+                      <div class="product-info-cell">
+                        <span class="product-name">{{ r.productName }}</span>
+                        <span class="product-code text-muted">{{ r.productCode }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="type-badge" [class.semi]="getReturnType(r) === 'semi'">
+                        <i class="pi" [class.pi-box]="getReturnType(r) === 'semi'" [class.pi-shopping-bag]="getReturnType(r) === 'finished'"></i>
+                        {{ getReturnTypeLabel(r) }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge" [class.badge-received]="r.isGood" [class.badge-cancelled]="!r.isGood">
+                        {{ r.isGood ? 'Good' : 'Damaged (Bad)' }}
+                      </span>
+                    </td>
+                    <td>
+
+                      <div class="action-cell">
+                        <span class="action-title">{{ r.action }}</span>
+                        <span class="reason-note text-muted">
+                          Reason: "{{ r.reason || 'No reason provided' }}"
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge" [class.badge-pending]="r.approvalStatusId === 1"
+                        [class.badge-approved]="r.approvalStatusId === 2"
+                        [class.badge-cancelled]="r.approvalStatusId === 3" [class.badge-ok]="r.approvalStatusId === 0">
+                        {{ r.approvalStatus }}
+                      </span>
+                    </td>
+                    <td>{{ r.approvedByName || '-' }}</td>
+                    <td>
+                      <span class="badge" [class.badge-received]="r.isResolved" [class.badge-pending]="!r.isResolved">
+                        {{ r.isResolved ? 'Resolved' : 'Pending' }}
+                      </span>
+                    </td>
+                    <td>{{ r.createdAt | date:'mediumDate' }}</td>
+
+
+                    <td>{{ r.createdBy || '-' }}</td>
+
+                    <td>
+                      <a class="btn btn-xs btn-amber"
+                        *ngIf="r.actionId === 4 && r.approvalStatusId === 1"
+                        routerLink="/pending-approvals">
+                        <i class="pi pi-shield"></i> View Task
+                      </a>
+                      <button class="btn btn-xs btn-ghost" title="Edit reason" *ngIf="!r.reason"
+                        (click)="openEditReasonModal(r)">
+                        <i class="pi pi-pencil"></i> Edit Reason
+                      </button>
+                      <button class="btn btn-xs btn-ghost" title="Log new return for this serial"
+                        *ngIf="canCreate() && !r.isResolved" (click)="goToReturnForSerial(r)">
+                        <i class="pi pi-refresh"></i> Return
+                      </button>
+                    </td>
+                  </tr>
+                  <!-- Expanded materials details row -->
+                  <tr *ngIf="expandedReturnId() === r.id" class="details-row">
+                    <td colspan="12">
+                      <div class="details-expanded-card">
+                        <!-- Recovered materials list (raw or semi-finished) -->
+                        <div *ngIf="r.recoveredMaterials.length > 0">
+                          <h4 class="expanded-heading"><i class="pi pi-box"></i> Salvaged materials (added to Warehouse)
+                          </h4>
+                          <div class="details-materials-grid">
+                            <span class="material-detail-tag" *ngFor="let m of r.recoveredMaterials">
+                              <span class="material-kind-tag" *ngIf="m.semiFinishedId">SEMI</span>
+                              <span class="material-kind-tag" *ngIf="m.rawMaterialId">RAW</span>
+                              <span class="material-name">{{ m.rawMaterialName || m.semiFinishedName }}</span>
+                              <span class="material-code">({{ m.rawMaterialCode || m.semiFinishedCode }})</span>
+                              <span class="material-qty">+{{ m.quantity }} {{ m.unit }}</span>
+                            </span>
+                          </div>
+                        </div>
+                        <!-- Maintenance consumed list (raw or semi-finished) -->
+                        <div *ngIf="r.maintenanceMaterials.length > 0">
+                          <h4 class="expanded-heading"><i class="pi pi-cog"></i> Replacement parts consumed (deducted
+                            from Warehouse)</h4>
+                          <div class="details-materials-grid">
+                            <span class="material-detail-tag consumed" *ngFor="let m of r.maintenanceMaterials">
+                              <span class="material-kind-tag" *ngIf="m.semiFinishedId">SEMI</span>
+                              <span class="material-kind-tag" *ngIf="m.rawMaterialId">RAW</span>
+                              <span class="material-name">{{ m.rawMaterialName || m.semiFinishedName }}</span>
+                              <span class="material-code">({{ m.rawMaterialCode || m.semiFinishedCode }})</span>
+                              <span class="material-qty">-{{ m.quantity }} {{ m.unit }}</span>
+                            </span>
+                          </div>
+                        </div>
+                        <!-- CEO Notes -->
+                        <div class="ceo-notes-block" *ngIf="r.approvalNotes">
+                          <span class="notes-label">CEO Notes:</span>
+                          <p class="notes-text">"{{ r.approvalNotes }}" <small class="text-muted"
+                              *ngIf="r.approvedAt">by {{ r.approvedByName || 'CEO' }} on {{ r.approvedAt | date:'short'
+                              }}</small></p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </ng-container>
+              </ng-container>
+              <ng-template #noReturns>
+                <tr>
+                  <td colspan="12" class="empty">No returns logged matching search criteria.</td>
+                </tr>
+              </ng-template>
+            </tbody>
+          </table>
+        </div>
+        <app-pagination [totalItems]="filteredReturns().length" [pageSize]="pagination.pageSize()"
+          [currentPage]="pagination.currentPage()" (pageChange)="pagination.currentPage.set($event)">
+        </app-pagination>
+      </div>
+    </div>
+
+    <!-- TAB 2: LOG NEW RETURN FORM -->
+    <div class="tab-content" *ngIf="activeTab() === 'new' && !isAllReturnsPage()">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Register Return Details</span>
+        </div>
+        <div class="card-body">
+
+          <div class="return-flow-note" *ngIf="embedded">
+            <i class="pi pi-info-circle"></i>
+            <span>كل Finished Good لازم يبدأ من هنا: Customer + Serial + Reason، وبعد التسجيل ينتقل إلى Work Center لتحديد المصير.</span>
+          </div>
+
+          <!-- Mode toggle -->
+          <div class="segmented-toggle flex-gap" style="margin-bottom: 24px">
+            <button type="button" class="btn btn-sm" [class.btn-primary]="registrationMode()==='tracked'"
+              [class.btn-ghost]="registrationMode()!=='tracked'" (click)="registrationMode.set('tracked')">
+              <i class="pi pi-verified"></i> Tracked Unit (Verify Serial)
+            </button>
+            <button type="button" class="btn btn-sm" [class.btn-primary]="registrationMode()==='old'"
+              [class.btn-ghost]="registrationMode()!=='old'" (click)="registrationMode.set('old')">
+              <i class="pi pi-history"></i> Old / Untracked Unit (New Serial Will Be Issued)
+            </button>
+          </div>
+
+          <!-- ============================================================ -->
+          <!-- TRACKED SERIAL FLOW                                          -->
+          <!-- ============================================================ -->
+          <form *ngIf="registrationMode()==='tracked'" (submit)="submitReturn(); $event.preventDefault()">
+            <div class="form-grid return-intake-grid" style="margin-bottom: 18px">
+              <div class="form-group">
+                <label>Customer <span class="required">*</span></label>
+                <select class="form-control" [(ngModel)]="newReturnForm.customerName" name="customerName"
+                  (ngModelChange)="onReturnCustomerChange()" required>
+                  <option value="" disabled>Select customer...</option>
+                  <option *ngFor="let customer of returnCustomerOptions" [value]="customer">{{ customer }}</option>
+                </select>
+              </div>
+            </div>
+            <!-- Serial verification block -->
+            <div class="form-grid" style="margin-bottom: 24px">
+              <div class="form-group">
+                <label>Enter Product Serial # <span class="required">*</span></label>
+                <div class="flex-gap">
+                  <input type="text" class="form-control" list="returnSerialOptions" [(ngModel)]="newReturnForm.serial" name="serial"
+                    [placeholder]="newReturnForm.customerName ? 'Choose or type a serial...' : 'Select a customer first...'"
+                    required [disabled]="verifiedSerial() !== null || !newReturnForm.customerName" />
+                  <datalist id="returnSerialOptions">
+                    <option *ngFor="let serial of returnSerialOptions" [value]="serial"></option>
+                  </datalist>
+                  <button type="button" class="btn btn-primary" (click)="verifySerial()"
+                    [disabled]="isVerifying() || !newReturnForm.serial || verifiedSerial() !== null">
+                    <span *ngIf="!isVerifying()">Verify</span>
+                    <span *ngIf="isVerifying()"><i class="pi pi-spin pi-spinner"></i></span>
+                  </button>
+                  <button type="button" class="btn btn-ghost" (click)="resetReturnForm()"
+                    *ngIf="verifiedSerial() !== null">Change Serial</button>
+                </div>
+                <div class="form-group" style="margin-top: 16px">
+                  <label>Reason for return <span class="required">*</span></label>
+                  <input class="form-control" [(ngModel)]="newReturnForm.reason" name="reason" required
+                    placeholder="e.g. loose connector or failed inspection" />
+                </div>
+                <div class="alert alert-error" style="margin-top: 8px; margin-bottom: 0" *ngIf="verificationError()">
+                  <i class="pi pi-exclamation-triangle"></i> {{ verificationError() }}
+                </div>
+                <div class="alert alert-info" style="margin-top: 8px; margin-bottom: 0" *ngIf="verificationNotice()">
+                  <i class="pi pi-info-circle"></i> {{ verificationNotice() }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Pre-populated verified details -->
+            <div class="alert alert-info" style="margin-bottom: 24px" *ngIf="verifiedSerial()">
+              <div class="verified-summary-grid">
+                <div>
+                  <span class="verified-label">Product Name:</span>
+                  <strong class="verified-value">{{ verifiedSerial().finishedProductName ||
+                    verifiedSerial().finishedProduct?.name }}</strong>
+                </div>
+                <div>
+                  <span class="verified-label">Product Code:</span>
+                  <strong class="verified-value">{{ verifiedSerial().finishedProductCode ||
+                    verifiedSerial().finishedProduct?.code }}</strong>
+                </div>
+                <div>
+                  <span class="verified-label">Model Type:</span>
+                  <strong class="verified-value">{{ verifiedSerial().finishedProduct?.modelType || '-' }}</strong>
+                </div>
+                <div>
+                  <span class="verified-label">Current Status:</span>
+                  <span class="badge badge-pending">{{ verifiedSerial().status }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Return intake only: the Work Center decides Good / Maintenance / Scrap. -->
+            <div *ngIf="verifiedSerial()" class="animated-form-body">
+              <div class="return-routing-note">
+                <i class="pi pi-arrow-right"></i>
+                <div>
+                  <strong>Next step: Work Center review</strong>
+                  <span>Save the return details first. The Work Center team will assign the unit and choose Good, Maintenance, or Scrap.</span>
+                </div>
+              </div>
+
+              <!-- <div class="form-group" style="margin-bottom: 20px">
+                <label>Reason for Return <span >*</span></label>
+                <textarea class="form-control" [(ngModel)]="newReturnForm.reason" name="reason" rows="3"
+                  placeholder="Explain the reason for return (e.g. client feedback, specific component failure, inspection test detail)..."
+                  ></textarea>
+              </div> -->
+
+              <!-- Action: RECYCLE - Salvage Materials Input -->
+              <div class="materials-section" *ngIf="newReturnForm.action === 2">
+                <div class="section-title-bar flex-between">
+                  <h4><i class="pi pi-box"></i> Recovered Materials from Unit</h4>
+                  <div class="custom-dropdown-container">
+                    <button type="button" class="btn btn-sm btn-ghost"
+                      (click)="showRawMaterialDropdown.set(showRawMaterialDropdown() === 'recovered' ? null : 'recovered')">
+                      <i class="pi pi-plus"></i> Add Material
+                    </button>
+                    <!-- Floating Material search dropdown -->
+                    <div class="custom-dropdown-menu" *ngIf="showRawMaterialDropdown() === 'recovered'">
+                      <input type="text" class="form-control dropdown-search" placeholder="Filter materials..."
+                        [ngModel]="rawMaterialSearchText()" (ngModelChange)="rawMaterialSearchText.set($event)" />
+                      <div class="dropdown-list">
+                        <div class="dropdown-section-label" *ngIf="filteredRawMaterials().length > 0">Raw Materials
+                        </div>
+                        <div class="dropdown-item" *ngFor="let rm of filteredRawMaterials()"
+                          (click)="addMaterialLine(newReturnForm, 'recovered', 'raw', rm.id)">
+                          <b>{{ rm.code }}</b> - {{ rm.name }} ({{ rm.unit }})
+                        </div>
+                        <div class="dropdown-section-label" *ngIf="filteredSemiMaterials().length > 0">Semi-Finished
+                          Items</div>
+                        <div class="dropdown-item" *ngFor="let sm of filteredSemiMaterials()"
+                          (click)="addMaterialLine(newReturnForm, 'recovered', 'semi', sm.id)">
+                          <b>{{ sm.code }}</b> - {{ sm.name }} ({{ sm.unit }})
+                        </div>
+                        <div class="dropdown-empty"
+                          *ngIf="filteredRawMaterials().length === 0 && filteredSemiMaterials().length === 0">No
+                          materials match search.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="materials-table-wrapper">
+                  <table class="materials-table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Qty to salvage</th>
+                        <th>Unit</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let m of newReturnForm.recoveredMaterials; let i = index">
+                        <td><span class="material-kind-tag">{{ m.kind === 'raw' ? 'RAW' : 'SEMI' }}</span></td>
+                        <td><b>{{ m.code }}</b></td>
+                        <td>{{ m.name }}</td>
+                        <td>
+                          <input type="number" class="form-control qty-input" [(ngModel)]="m.quantity"
+                            name="recoveredQty_{{i}}" min="0.001" step="any" required />
+                        </td>
+                        <td><span class="text-muted">{{ m.unit }}</span></td>
+                        <td>
+                          <button type="button" class="btn btn-xs btn-ghost text-danger-btn"
+                            (click)="removeMaterialLine(newReturnForm, 'recovered', i)">
+                            <i class="pi pi-trash"></i>
+                          </button>
+                        </td>
+                      </tr>
+                      <tr *ngIf="newReturnForm.recoveredMaterials.length === 0">
+                        <td colspan="6" class="empty">No materials currently selected. Use the add button to select
+                          parts to salvage.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Action: MAINTAIN - Consume Materials Input -->
+              <div class="materials-section" *ngIf="newReturnForm.action === 3">
+                <div class="section-title-bar flex-between">
+                  <h4><i class="pi pi-cog"></i> Consumed Maintenance Materials (deducted from Warehouse)</h4>
+                  <div class="custom-dropdown-container">
+                    <button type="button" class="btn btn-sm btn-ghost"
+                      (click)="showRawMaterialDropdown.set(showRawMaterialDropdown() === 'maintenance' ? null : 'maintenance')">
+                      <i class="pi pi-plus"></i> Add Material
+                    </button>
+                    <!-- Floating Material search dropdown -->
+                    <div class="custom-dropdown-menu" *ngIf="showRawMaterialDropdown() === 'maintenance'">
+                      <input type="text" class="form-control dropdown-search" placeholder="Filter materials..."
+                        [ngModel]="rawMaterialSearchText()" (ngModelChange)="rawMaterialSearchText.set($event)" />
+                      <div class="dropdown-list">
+                        <div class="dropdown-section-label" *ngIf="filteredRawMaterials().length > 0">Raw Materials
+                        </div>
+                        <div class="dropdown-item" *ngFor="let rm of filteredRawMaterials()"
+                          (click)="addMaterialLine(newReturnForm, 'maintenance', 'raw', rm.id)">
+                          <b>{{ rm.code }}</b> - {{ rm.name }} ({{ rm.unit }})
+                        </div>
+                        <div class="dropdown-section-label" *ngIf="filteredSemiMaterials().length > 0">Semi-Finished
+                          Items</div>
+                        <div class="dropdown-item" *ngFor="let sm of filteredSemiMaterials()"
+                          (click)="addMaterialLine(newReturnForm, 'maintenance', 'semi', sm.id)">
+                          <b>{{ sm.code }}</b> - {{ sm.name }} ({{ sm.unit }})
+                        </div>
+                        <div class="dropdown-empty"
+                          *ngIf="filteredRawMaterials().length === 0 && filteredSemiMaterials().length === 0">No
+                          materials match search.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="materials-table-wrapper">
+                  <table class="materials-table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Qty to consume</th>
+                        <th>Unit</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let m of newReturnForm.maintenanceMaterials; let i = index">
+                        <td><span class="material-kind-tag">{{ m.kind === 'raw' ? 'RAW' : 'SEMI' }}</span></td>
+                        <td><b>{{ m.code }}</b></td>
+                        <td>{{ m.name }}</td>
+                        <td>
+                          <input type="number" class="form-control qty-input" [(ngModel)]="m.quantity"
+                            name="maintenanceQty_{{i}}" min="0.001" step="any" required />
+                        </td>
+                        <td><span class="text-muted">{{ m.unit }}</span></td>
+                        <td>
+                          <button type="button" class="btn btn-xs btn-ghost text-danger-btn"
+                            (click)="removeMaterialLine(newReturnForm, 'maintenance', i)">
+                            <i class="pi pi-trash"></i>
+                          </button>
+                        </td>
+                      </tr>
+                      <tr *ngIf="newReturnForm.maintenanceMaterials.length === 0">
+                        <td colspan="6" class="empty">No replacement materials currently selected. Use the add button to
+                          choose parts to deduct.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Scrap Warning Message -->
+              <div class="alert alert-info" style="margin-top: 16px" *ngIf="newReturnForm.action === 4">
+                <i class="pi pi-info-circle"></i> <b>CEO Approval Required:</b> Submitting this return will change the
+                serial status to <code>PendingCeoApproval</code>. It will not decrement inventory stock until the CEO
+                reviews and approves the request.
+              </div>
+
+              <div class="inline-work-center-step" *ngIf="!newReturnForm.isGood">
+                <div class="inline-work-center-step__eyebrow">STEP 2 · WORK CENTER</div>
+                <h4>Choose what happens to this damaged unit</h4>
+                <p *ngIf="newReturnForm.action === 2">Recovered parts will be listed and moved to the raw-material stock after processing.</p>
+                <p *ngIf="newReturnForm.action === 4">The unit will wait for CEO approval before it is removed from stock.</p>
+                <div class="inline-work-center-step__summary">
+                  <span>Decision: <b>{{ newReturnForm.action === 2 ? 'Recycle & salvage' : 'Scrap for approval' }}</b></span>
+                  <span>Serial: <b>New serial after processing</b></span>
+                </div>
+                <button type="button" class="btn btn-secondary" *ngIf="!workCenterStepConfirmed()"
+                  (click)="confirmWorkCenterStep()">Confirm Work Center step</button>
+                <span class="inline-work-center-step__confirmed" *ngIf="workCenterStepConfirmed()">
+                  <i class="pi pi-check-circle"></i> Work Center decision confirmed
+                </span>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary"><i class="pi pi-check-circle"></i> Register Return &amp; Send to Work Center</button>
+                <button type="button" class="btn btn-ghost" (click)="resetReturnForm()">Reset form</button>
+              </div>
+            </div>
+          </form>
+
+          <!-- ============================================================ -->
+          <!-- OLD / UNTRACKED SERIAL FLOW                                  -->
+          <!-- ============================================================ -->
+          <form *ngIf="registrationMode()==='old'" (submit)="submitOldSerialReturn(); $event.preventDefault()">
+            <div class="alert alert-info" style="margin-bottom: 24px">
+              <i class="pi pi-info-circle"></i> Use this for units that predate the serial-tracking system. Select the
+              finished product this unit belongs to, and a <b>new serial number will be issued</b> by the system once
+              submitted.
+            </div>
+
+            <div class="form-grid" style="margin-bottom: 20px">
+              <div class="form-group">
+                <label>Finished Product <span class="required">*</span></label>
+                <select class="form-control" [ngModel]="oldReturnForm.finishedProductId" name="finishedProductId"
+                  (ngModelChange)="onFinishedProductPicked($event)" required>
+                  <option [ngValue]="null" disabled>Select the finished product...</option>
+                  <option *ngFor="let p of masterData.PRODUCTS()" [ngValue]="p.id">{{ p.code }} - {{ p.name }}</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Old Serial / Reference # <span class="required">*</span></label>
+                <input type="text" class="form-control" [(ngModel)]="oldReturnForm.oldSerial" name="oldSerial"
+                  placeholder="e.g. legacy tag, invoice ref, or handwritten label" required />
+              </div>
+            </div>
+
+            <div *ngIf="oldReturnForm.finishedProductId" class="animated-form-body">
+              <div class="return-routing-note">
+                <i class="pi pi-arrow-right"></i>
+                <div>
+                  <strong>Next step: Work Center review</strong>
+                  <span>After registration, the Work Center team will assign the unit and decide Good, Maintenance, or Scrap.</span>
+                </div>
+              </div>
+              <div class="form-grid" style="display:none">
+                <div class="form-group">
+                  <label>Returned Condition <span class="required">*</span></label>
+                  <select class="form-control" [(ngModel)]="oldReturnForm.isGood" name="oldIsGood"
+                    (change)="onIsGoodChange(oldReturnForm)">
+                    <option [ngValue]="true">Good condition (Functional / Re-sellable)</option>
+                    <option [ngValue]="false">Damaged condition (Faulty / Defective)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Required Action <span class="required">*</span></label>
+                  <select class="form-control" [(ngModel)]="oldReturnForm.action" name="oldAction"
+                    (ngModelChange)="workCenterStepConfirmed.set(false)">
+                    <option *ngIf="oldReturnForm.isGood" [ngValue]="1">Move to Finished Goods Warehouse (Good Stock)
+                    </option>
+                    <option *ngIf="oldReturnForm.isGood" [ngValue]="3">Process Maintenance & Repair (Consume Materials)
+                    </option>
+                    <option *ngIf="!oldReturnForm.isGood" [ngValue]="2">Recycle & Salvage Parts (Move to RM Warehouse)
+                    </option>
+                    <option *ngIf="!oldReturnForm.isGood" [ngValue]="4">Scrap Unit (Requires CEO Approval)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- <div class="form-group" style="margin-bottom: 20px">
+                <label>Reason for Return <span class="required">*</span></label>
+                <textarea class="form-control" [(ngModel)]="oldReturnForm.reason" name="oldReason" rows="3"
+                  placeholder="Explain the reason for return..." required></textarea>
+              </div> -->
+
+              <!-- Action: RECYCLE -->
+              <div class="materials-section" *ngIf="oldReturnForm.action === 2">
+                <div class="section-title-bar flex-between">
+                  <h4><i class="pi pi-box"></i> Recovered Materials from Unit</h4>
+                  <div class="custom-dropdown-container">
+                    <button type="button" class="btn btn-sm btn-ghost"
+                      (click)="showRawMaterialDropdown.set(showRawMaterialDropdown() === 'recovered' ? null : 'recovered')">
+                      <i class="pi pi-plus"></i> Add Material
+                    </button>
+                    <div class="custom-dropdown-menu" *ngIf="showRawMaterialDropdown() === 'recovered'">
+                      <input type="text" class="form-control dropdown-search" placeholder="Filter materials..."
+                        [ngModel]="rawMaterialSearchText()" (ngModelChange)="rawMaterialSearchText.set($event)" />
+                      <div class="dropdown-list">
+                        <div class="dropdown-section-label" *ngIf="filteredRawMaterials().length > 0">Raw Materials
+                        </div>
+                        <div class="dropdown-item" *ngFor="let rm of filteredRawMaterials()"
+                          (click)="addMaterialLine(oldReturnForm, 'recovered', 'raw', rm.id)">
+                          <b>{{ rm.code }}</b> - {{ rm.name }} ({{ rm.unit }})
+                        </div>
+                        <div class="dropdown-section-label" *ngIf="filteredSemiMaterials().length > 0">Semi-Finished
+                          Items</div>
+                        <div class="dropdown-item" *ngFor="let sm of filteredSemiMaterials()"
+                          (click)="addMaterialLine(oldReturnForm, 'recovered', 'semi', sm.id)">
+                          <b>{{ sm.code }}</b> - {{ sm.name }} ({{ sm.unit }})
+                        </div>
+                        <div class="dropdown-empty"
+                          *ngIf="filteredRawMaterials().length === 0 && filteredSemiMaterials().length === 0">No
+                          materials match search.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="materials-table-wrapper">
+                  <table class="materials-table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Qty to salvage</th>
+                        <th>Unit</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let m of oldReturnForm.recoveredMaterials; let i = index">
+                        <td><span class="material-kind-tag">{{ m.kind === 'raw' ? 'RAW' : 'SEMI' }}</span></td>
+                        <td><b>{{ m.code }}</b></td>
+                        <td>{{ m.name }}</td>
+                        <td>
+                          <input type="number" class="form-control qty-input" [(ngModel)]="m.quantity"
+                            name="oldRecoveredQty_{{i}}" min="0.001" step="any" required />
+                        </td>
+                        <td><span class="text-muted">{{ m.unit }}</span></td>
+                        <td>
+                          <button type="button" class="btn btn-xs btn-ghost text-danger-btn"
+                            (click)="removeMaterialLine(oldReturnForm, 'recovered', i)">
+                            <i class="pi pi-trash"></i>
+                          </button>
+                        </td>
+                      </tr>
+                      <tr *ngIf="oldReturnForm.recoveredMaterials.length === 0">
+                        <td colspan="6" class="empty">No materials currently selected. Use the add button to select
+                          parts to salvage.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Action: MAINTAIN -->
+              <div class="materials-section" *ngIf="oldReturnForm.action === 3">
+                <div class="section-title-bar flex-between">
+                  <h4><i class="pi pi-cog"></i> Consumed Maintenance Materials (deducted from Warehouse)</h4>
+                  <div class="custom-dropdown-container">
+                    <button type="button" class="btn btn-sm btn-ghost"
+                      (click)="showRawMaterialDropdown.set(showRawMaterialDropdown() === 'maintenance' ? null : 'maintenance')">
+                      <i class="pi pi-plus"></i> Add Material
+                    </button>
+                    <div class="custom-dropdown-menu" *ngIf="showRawMaterialDropdown() === 'maintenance'">
+                      <input type="text" class="form-control dropdown-search" placeholder="Filter materials..."
+                        [ngModel]="rawMaterialSearchText()" (ngModelChange)="rawMaterialSearchText.set($event)" />
+                      <div class="dropdown-list">
+                        <div class="dropdown-section-label" *ngIf="filteredRawMaterials().length > 0">Raw Materials
+                        </div>
+                        <div class="dropdown-item" *ngFor="let rm of filteredRawMaterials()"
+                          (click)="addMaterialLine(oldReturnForm, 'maintenance', 'raw', rm.id)">
+                          <b>{{ rm.code }}</b> - {{ rm.name }} ({{ rm.unit }})
+                        </div>
+                        <div class="dropdown-section-label" *ngIf="filteredSemiMaterials().length > 0">Semi-Finished
+                          Items</div>
+                        <div class="dropdown-item" *ngFor="let sm of filteredSemiMaterials()"
+                          (click)="addMaterialLine(oldReturnForm, 'maintenance', 'semi', sm.id)">
+                          <b>{{ sm.code }}</b> - {{ sm.name }} ({{ sm.unit }})
+                        </div>
+                        <div class="dropdown-empty"
+                          *ngIf="filteredRawMaterials().length === 0 && filteredSemiMaterials().length === 0">No
+                          materials match search.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="materials-table-wrapper">
+                  <table class="materials-table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Qty to consume</th>
+                        <th>Unit</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let m of oldReturnForm.maintenanceMaterials; let i = index">
+                        <td><span class="material-kind-tag">{{ m.kind === 'raw' ? 'RAW' : 'SEMI' }}</span></td>
+                        <td><b>{{ m.code }}</b></td>
+                        <td>{{ m.name }}</td>
+                        <td>
+                          <input type="number" class="form-control qty-input" [(ngModel)]="m.quantity"
+                            name="oldMaintenanceQty_{{i}}" min="0.001" step="any" required />
+                        </td>
+                        <td><span class="text-muted">{{ m.unit }}</span></td>
+                        <td>
+                          <button type="button" class="btn btn-xs btn-ghost text-danger-btn"
+                            (click)="removeMaterialLine(oldReturnForm, 'maintenance', i)">
+                            <i class="pi pi-trash"></i>
+                          </button>
+                        </td>
+                      </tr>
+                      <tr *ngIf="oldReturnForm.maintenanceMaterials.length === 0">
+                        <td colspan="6" class="empty">No replacement materials currently selected. Use the add button to
+                          choose parts to deduct.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Scrap Warning Message -->
+              <div class="alert alert-info" style="margin-top: 16px" *ngIf="oldReturnForm.action === 4">
+                <i class="pi pi-info-circle"></i> <b>CEO Approval Required:</b> A new serial will be issued with status
+                <code>PendingCeoApproval</code>. It will not affect inventory stock until the CEO reviews and approves
+                the request.
+              </div>
+
+              <div class="inline-work-center-step" *ngIf="!oldReturnForm.isGood">
+                <div class="inline-work-center-step__eyebrow">STEP 2 · WORK CENTER</div>
+                <h4>Choose what happens to this damaged unit</h4>
+                <p *ngIf="oldReturnForm.action === 2">Recovered parts will be listed and moved to the raw-material stock after processing.</p>
+                <p *ngIf="oldReturnForm.action === 4">The unit will wait for CEO approval before it is removed from stock.</p>
+                <div class="inline-work-center-step__summary">
+                  <span>Decision: <b>{{ oldReturnForm.action === 2 ? 'Recycle & salvage' : 'Scrap for approval' }}</b></span>
+                  <span>Serial: <b>New serial will be issued</b></span>
+                </div>
+                <button type="button" class="btn btn-secondary" *ngIf="!workCenterStepConfirmed()"
+                  (click)="confirmWorkCenterStep()">Confirm Work Center step</button>
+                <span class="inline-work-center-step__confirmed" *ngIf="workCenterStepConfirmed()">
+                  <i class="pi pi-check-circle"></i> Work Center decision confirmed
+                </span>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary"><i class="pi pi-check-circle"></i> Register Old Unit &amp; Send to Work Center</button>
+                <button type="button" class="btn btn-ghost" (click)="resetOldReturnForm()">Reset form</button>
+              </div>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+    <!-- TAB: RETURN TO WAREHOUSE -->
+    <div class="tab-content" *ngIf="activeTab() === 'returnToWarehouse' && !isAllReturnsPage() && !embedded">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Return Unit to Warehouse</span>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info" style="margin-bottom: 20px">
+            <i class="pi pi-info-circle"></i> Use this for a quick direct return of a unit to the warehouse stock.
+          </div>
+
+          <form (submit)="submitReturnToWarehouse(); $event.preventDefault()">
+            <div class="form-group" style="margin-bottom: 20px; max-width: 400px">
+              <label>Serial # <span class="required">*</span></label>
+              <input type="text" class="form-control" [(ngModel)]="returnToWarehouseForm.serial" name="rtwSerial"
+                placeholder="e.g. SN-FG001-0005" required />
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" [disabled]="isSubmittingReturnToWarehouse()">
+                <i class="pi pi-check-circle" *ngIf="!isSubmittingReturnToWarehouse()"></i>
+                <i class="pi pi-spin pi-spinner" *ngIf="isSubmittingReturnToWarehouse()"></i>
+                Return to Warehouse
+              </button>
+              <button type="button" class="btn btn-ghost" (click)="resetReturnToWarehouseForm()">Reset form</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT REASON DIALOG OVERLAY -->
+<div class="modal-overlay" [class.open]="editingReasonReturn() !== null" (click)="closeEditReasonModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title"><i class="pi pi-pencil"></i> Edit Return Reason</span>
+      <button class="modal-close" (click)="closeEditReasonModal()"><i class="pi pi-times"></i></button>
+    </div>
+
+    <div class="modal-body" *ngIf="editingReasonReturn()">
+      <p style="margin-bottom: 12px">
+        <strong>Serial:</strong> {{ editingReasonReturn()?.serial }} —
+        <strong>Product:</strong> {{ editingReasonReturn()?.productName }}
+      </p>
+
+      <div class="form-group">
+        <label>Reason <span class="required">*</span></label>
+        <textarea class="form-control" [ngModel]="editReasonText()" (ngModelChange)="editReasonText.set($event)"
+          rows="3" placeholder="Enter the reason for this return..."></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="closeEditReasonModal()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="!editReasonText().trim() || isSavingReason()"
+        (click)="submitReasonEdit()">
+        <i class="pi pi-save"></i>
+        <span *ngIf="!isSavingReason()">Save Reason</span>
+        <span *ngIf="isSavingReason()"><i class="pi pi-spin pi-spinner"></i></span>
+      </button>
+    </div>
+  </div>
+</div>

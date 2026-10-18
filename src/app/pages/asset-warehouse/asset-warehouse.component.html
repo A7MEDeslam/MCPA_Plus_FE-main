@@ -1,0 +1,81 @@
+<div class="page active" id="page-asset-wh">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-wrench" style="margin-right: 8px;"></i>Asset Warehouse</h1>
+      <p>Fixed assets held in the asset warehouse
+        <span *ngIf="assetWarehouse()"> — <b>{{ assetWarehouse()!.name }}</b></span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-grid">
+    <div class="stat-card navy">
+      <div class="stat-label">Total Assets</div>
+      <div class="stat-value">{{ totalItems() }}</div>
+      <div class="stat-sub">Asset records</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-label">Asset Receipts</div>
+      <div class="stat-value">{{ totalReceipts() }}</div>
+      <div class="stat-sub">Receipts posted</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Warehouse</div>
+      <div class="stat-value" style="font-size:1.1rem">{{ assetWarehouse()?.name || '—' }}</div>
+      <div class="stat-sub">Type: Asset Warehouse</div>
+    </div>
+  </div>
+
+  <!-- Asset table -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Asset Stock</span>
+      <div class="search-input-wrapper">
+        <i class="pi pi-search search-icon"></i>
+        <input class="form-control search-input" placeholder="Search assets..." [ngModel]="assetSearch()"
+          (ngModelChange)="assetSearch.set($event); pagination.currentPage.set(1)" />
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Account No</th>
+            <th>Asset Name</th>
+            <th>Total Ordered</th>
+            <th>Total Received</th>
+
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (pagedAssets().length) {
+          @for (a of pagedAssets(); track a.id) {
+          <tr>
+            <td><b>{{ a.accountNo || '—' }}</b></td>
+            <td>{{ a.name || '—' }}</td>
+            <td>{{ a.totalOrdered ?? '—' }}</td>
+            <td><b>{{ a.totalReceived ?? '—' }}</b></td>
+            <td>
+              <span class="badge" [class.badge-received]="a.isActive" [class.badge-pending]="!a.isActive">
+                {{ a.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+          </tr>
+          }
+          } @else {
+          <tr>
+            <td colspan="6" class="empty">
+              {{ inventory.AssetItems().length === 0 ? 'No assets in warehouse yet' : 'No assets match your search' }}
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pagination [totalItems]="filteredAssets().length" [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()" (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+</div>

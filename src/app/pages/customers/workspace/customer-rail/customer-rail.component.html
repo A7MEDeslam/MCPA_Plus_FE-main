@@ -1,0 +1,86 @@
+    <header class="head">
+      <div class="title-row">
+        <h2 class="title">
+          Customers <span class="count">{{ customers().length }}</span>
+        </h2>
+        @if (canManage()) {
+          <div class="tools">
+            <button
+              type="button"
+              class="ui-btn ui-btn--quiet ui-btn--icon ui-btn--sm"
+              title="Manage industry types"
+              aria-label="Manage industry types"
+              (click)="manageIndustries.emit()"
+            >
+              <i class="pi pi-cog" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="ui-btn ui-btn--primary ui-btn--sm" (click)="create.emit()">
+              <i class="pi pi-plus" aria-hidden="true"></i> New
+            </button>
+          </div>
+        }
+      </div>
+
+      <label class="search">
+        <i class="pi pi-search" aria-hidden="true"></i>
+        <input
+          type="search"
+          class="ui-input"
+          placeholder="Search customers"
+          aria-label="Search customers"
+          [value]="search()"
+          (input)="onSearch($event)"
+        />
+      </label>
+
+      <div class="chips" role="group" aria-label="Filter by stage">
+        @for (chip of chips(); track chip.id) {
+          <button
+            type="button"
+            class="chip"
+            [class.on]="filter() === chip.id"
+            [attr.aria-pressed]="filter() === chip.id"
+            (click)="filter.set(chip.id)"
+          >
+            {{ chip.label }} <span class="chip-count">{{ chip.count }}</span>
+          </button>
+        }
+      </div>
+    </header>
+
+    <div class="list">
+      @if (loading()) {
+        @for (n of skeletons; track n) {
+          <div class="skeleton"></div>
+        }
+      } @else {
+        @for (row of rows(); track row.customer.id) {
+          <button
+            type="button"
+            class="item"
+            [class.active]="row.customer.id === activeId()"
+            [attr.aria-current]="row.customer.id === activeId() ? 'true' : null"
+            (click)="selected.emit(row.customer)"
+          >
+            <span class="avatar" aria-hidden="true">{{ row.initials }}</span>
+            <span class="info">
+              <strong class="name">{{ row.customer.companyName }}</strong>
+              <span class="meta">
+                <app-badge [tone]="row.stage.tone" size="sm">{{ row.stage.label }}</app-badge>
+                @if (row.place) {
+                  <span class="place">{{ row.place }}</span>
+                }
+              </span>
+              <span class="segments" aria-hidden="true">
+                @for (s of segments; track s) {
+                  <i [class.on]="s <= row.index"></i>
+                }
+              </span>
+            </span>
+          </button>
+        } @empty {
+          <app-empty-state variant="inline" title="No customers found" />
+        }
+      }
+    </div>
+  

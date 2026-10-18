@@ -1,0 +1,1487 @@
+<div class="progression-page">
+  <header class="progression-topbar">
+    <div><span class="eyebrow">Sales operations</span>
+      <h1>Customer progression</h1>
+    </div>
+    <div class="progression-search"><i class="pi pi-search"></i><input placeholder="Search accounts, contacts or deals"
+        [ngModel]="search()" (ngModelChange)="search.set($event)" /></div>
+
+  </header>
+
+  <div class="progression-layout">
+    <app-customer-rail [customers]="filteredCustomers()" [activeId]="activeCustomer()?.id ?? null" [loading]="loading()"
+      [canManage]="canManage" [(search)]="search" (selected)="selectCustomer($event)" (create)="openCreate()"
+      (manageIndustries)="openIndustries()" />
+
+    <main class="customer-workspace" *ngIf="activeCustomer() as customer; else noCustomer">
+      @if (!isEngineer) {
+      <app-workspace-header [customer]="customer" [canManage]="canManage"
+        [canRequestUpgrade]="canRequestStageChange && !hasPendingRequest() && allowedNextStatuses().length > 0"
+        [nextStageLabel]="nextStageLabel()" [pendingFrom]="pendingRequest()?.fromStatusName ?? null"
+        [pendingTo]="pendingRequest()?.toStatusName ?? null" (requestUpgrade)="openRequestUpgrade()"
+        (assign)="openAssign(customer)" (edit)="openEdit(customer)" (activities)="openActivities(customer)"
+        (remove)="deleteCustomer(customer)" />
+      }
+      <nav class="workspace-tabs" *ngIf="!isEngineer">
+        <button [class.active]="workspaceTab === 'overview'" (click)="workspaceTab = 'overview'">Overview</button>
+        <button [class.active]="workspaceTab === 'contacts'" (click)="openWorkspaceContacts(customer)">Contacts</button>
+        <button *ngIf="customer.status === CustomerStatus.PocOrPilot" [class.active]="workspaceTab === 'poc'"
+          (click)="workspaceTab = 'poc'">POC</button>
+        <button *ngIf="canReviewStageRequest" [class.active]="workspaceTab === 'serials'"
+          (click)="workspaceTab = 'serials'">Serials</button>
+        <button *ngIf="customer.status === CustomerStatus.Contracted" [class.active]="workspaceTab === 'contract'"
+          (click)="openWorkspaceContract(customer)">Contract</button>
+        <!-- <button *ngIf="customer.status === CustomerStatus.Contracted && currentContract()?.statusName === 'DealDone'"
+          [class.active]="workspaceTab === 'delivery'" (click)="openWorkspaceDelivery(customer)">
+          Delivery
+        </button> -->
+        <button [class.active]="workspaceTab === 'timeline'" (click)="openWorkspaceTimeline(customer)">Timeline</button>
+      </nav>
+    @if (workspaceTab === 'overview') {
+<app-overview-tab [customer]="customer" [details]="stageDetails()" [loading]="stageDetailsLoading()"
+  [pending]="pendingRequest()" [canReview]="canReviewStageRequest" [busy]="savingStageAction()"
+  (approve)="confirmApproveRequest()" (reject)="openRejectRequest()"
+  (edit)="openEdit(customer)" />
+    }
+
+      <section class="poc-pilot-workspace" *ngIf="workspaceTab === 'poc' && stageDetails()?.pocOrPilot as poc">
+        <div class="poc-pilot-heading">
+          <div>
+            <span class="eyebrow">Proof of concept</span>
+            <h3>{{ poc.pilotTitle || 'POC details' }}</h3>
+            <p>{{ poc.pilotTypeName || 'Pilot' }}<span *ngIf="poc.technicalOwnerName"> · Owner: {{ poc.technicalOwnerName }}</span></p>
+          </div>
+          <span class="poc-status-badge">{{ poc.statusName || poc.approvalStatusName || 'PendingCcoApproval' }}</span>
+        </div>
+
+        <div class="stage-track">
+          <div *ngFor="let step of pocApprovalSteps; let i = index" class="stage-step"
+            [class.done]="i < pocApprovalStepIndex(poc.statusName || poc.approvalStatusName || 'PendingCcoApproval')"
+            [class.current]="i === pocApprovalStepIndex(poc.statusName || poc.approvalStatusName || 'PendingCcoApproval')">
+            <span><i class="pi pi-check" *ngIf="i < pocApprovalStepIndex(poc.statusName || poc.approvalStatusName || 'PendingCcoApproval')"></i>
+              <ng-container *ngIf="i >= pocApprovalStepIndex(poc.statusName || poc.approvalStatusName || 'PendingCcoApproval')">{{ i + 1 }}</ng-container></span>
+            <small>{{ step.label }}</small>
+          </div>
+        </div>
+
+        <div class="poc-pilot-layout">
+          <div class="poc-pilot-main">
+            <article class="detail-card">
+              <div class="detail-grid">
+                <div><label>Planned start</label><strong>{{ poc.plannedStart ? (poc.plannedStart | date:'mediumDate') : '-' }}</strong></div>
+                <div><label>Planned end</label><strong>{{ poc.plannedEnd ? (poc.plannedEnd | date:'mediumDate') : '-' }}</strong></div>
+                <div><label>Technical owner</label><strong>{{ poc.technicalOwnerName || '-' }}</strong></div>
+              </div>
+              <div class="detail-note"><label>Objective</label><p>{{ poc.objective || '-' }}</p></div>
+              <div class="detail-note"><label>Success criteria</label><p>{{ poc.successCriteria || '-' }}</p></div>
+            </article>
+
+            <article class="detail-card">
+              <div class="upgrade-section-header"><span class="eyebrow">POC bill of quantity</span></div>
+              <div class="table-state" *ngIf="!poc.billOfQuantity?.length">No items listed for this POC.</div>
+              <div class="contact-list" *ngIf="poc.billOfQuantity?.length">
+                <div class="contact-row" *ngFor="let item of poc.billOfQuantity">
+                  <div class="contact-row-info">
+                    <div class="contact-row-name"><strong>{{ item.item }}</strong></div>
+                    <div class="contact-row-details"><span>{{ item.scope || '-' }}</span><span>Qty: {{ item.qty }}</span></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <article class="action-card" *ngIf="(poc.pocId || poc.id) && canApprovePocStep(poc.statusName || poc.approvalStatusName || 'PendingCcoApproval')">
+            <label>{{ pocApprovalStepRole(poc.statusName || poc.approvalStatusName || 'PendingCcoApproval') }} approval</label>
+            <label for="poc-approval-comment">Approval comment</label>
+            <textarea id="poc-approval-comment" class="form-control" rows="3" [(ngModel)]="pocApprovalComment"
+              placeholder="Add a comment (optional)"></textarea>
+            <div class="approval-actions">
+              <button class="btn btn-primary" type="button" [disabled]="pocApprovalSaving()" (click)="approvePoc(true)">
+                <i [class]="pocApprovalSaving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i> Approve
+              </button>
+              <button class="btn btn-ghost" type="button" [disabled]="pocApprovalSaving()" (click)="approvePoc(false)">Reject</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="poc-pilot-workspace" *ngIf="workspaceTab === 'contract'">
+        <div *ngIf="contractLoading()" class="contacts-state"><i class="pi pi-spin pi-spinner"></i> Loading
+          contract...
+        </div>
+        <div *ngIf="!contractLoading() && !currentContract()" class="contacts-state">No contract started for this
+          customer yet.</div>
+
+        <ng-container *ngIf="!contractLoading() && currentContract() as contract">
+          <div class="poc-pilot-heading">
+            <div>
+              <span class="eyebrow">Agreed scope</span>
+              <h3>{{ contract.contractTitle }}</h3>
+              <p>{{ contract.contractStartDate | date:'mediumDate' }} &rarr; {{ contract.contractEndDate |
+                date:'mediumDate' }}</p>
+            </div>
+            <span class="poc-status-badge" [class.rejected]="contract.status === ContractWorkflowStatus.Rejected">
+              {{ contract.statusName }}
+            </span>
+          </div>
+
+          <div class="stage-track" *ngIf="contract.status !== ContractWorkflowStatus.Rejected">
+            <div *ngFor="let step of contractSteps; let i = index" class="stage-step"
+              [class.done]="i < contractStepIndex(contract.statusName)"
+              [class.current]="i === contractStepIndex(contract.statusName)">
+              <span><i class="pi pi-check" *ngIf="i < contractStepIndex(contract.statusName)"></i><ng-container
+                  *ngIf="i >= contractStepIndex(contract.statusName)">{{ i + 1 }}</ng-container></span>
+              <small>{{ step.label }}</small>
+            </div>
+          </div>
+
+          <div class="poc-pilot-layout">
+            <div class="poc-pilot-main">
+              <article class="detail-card">
+                <div class="detail-grid">
+                  <div><label>Started from stage</label><strong>{{ contract.startedFromStatusName }}</strong></div>
+                  <div><label>Contract start date</label><strong>{{ contract.contractStartDate | date:'mediumDate'
+                      }}</strong></div>
+                  <div><label>Contract end date</label><strong>{{ contract.contractEndDate | date:'mediumDate'
+                      }}</strong></div>
+                  <div><label>Status</label><strong>{{ contract.statusName }}</strong></div>
+                </div>
+                <div class="detail-note"><label>Terms</label>
+                  <p>{{ contract.terms || '-' }}</p>
+                </div>
+                <div class="detail-note"><label>Exclusions</label>
+                  <p>{{ contract.exclusions || 'No exclusions specified.'}}</p>
+                </div>
+                <div class="detail-note"><label>Comments</label>
+                  <p>{{ contract.comments || 'No comments added.' }}</p>
+                </div>
+              </article>
+              <article class="detail-card">
+                <div class="card-heading">
+                  <div>
+                    <span class="eyebrow">Agreed resources</span>
+                    <h3>Contract bill of quantity</h3>
+                  </div>
+                  <button *ngIf="contract.canEditBillOfQuantity && !boqEditing()" class="btn btn-xs btn-ghost"
+                    type="button" (click)="startEditBoq(contract)">
+                    <i class="pi pi-pencil"></i> Edit
+                  </button>
+                </div>
+
+                <!-- عرض -->
+                <ng-container *ngIf="!boqEditing()">
+                  <div class="table-state" *ngIf="!contract.billOfQuantity?.length">No resources listed for this
+                    contract.</div>
+                  <div class="contact-list" *ngIf="contract.billOfQuantity?.length">
+                    <div class="contact-row" *ngFor="let resource of contract.billOfQuantity">
+                      <div class="contact-row-info">
+                        <div class="contact-row-name"><strong>{{ resource.item }}</strong></div>
+                        <div class="contact-row-details">
+                          <span>{{ resource.scope }}</span>
+                          <span>Qty: {{ resource.quantity }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </ng-container>
+
+                <!-- تعديل -->
+                <ng-container *ngIf="boqEditing()">
+                  <div class="upgrade-section-header with-action">
+                    <span class="eyebrow">Edit items</span>
+                    <button class="btn btn-xs btn-ghost" type="button" (click)="addBoqRow()">
+                      <i class="pi pi-plus"></i> Add item
+                    </button>
+                  </div>
+
+                  <div class="boq-list">
+                    <div class="boq-row" *ngFor="let row of boqDraft; let i = index">
+                      <input class="form-control" placeholder="Scope" [(ngModel)]="row.scope" />
+                      <select class="form-control" [(ngModel)]="row.item">
+                        <option value="" disabled>Select item</option>
+                        <option *ngIf="row.item && !productNameExists(row.item)" [value]="row.item">{{ row.item }}
+                        </option>
+                        <option *ngFor="let product of finishedProducts()" [value]="product.name">
+                          {{ product.name }} , Stock: {{ product.currentStock }}
+                        </option>
+                      </select>
+                      <input class="form-control boq-qty" type="number" min="1" placeholder="Qty"
+                        [(ngModel)]="row.quantity" />
+                      <button class="boq-remove" type="button" (click)="removeBoqRow(i)" title="Remove item">
+                        <i class="pi pi-trash"></i>
+                      </button>
+                    </div>
+                    <div class="table-state" *ngIf="!boqDraft.length">No items added yet.</div>
+                  </div>
+
+                  <div class="approval-actions">
+                    <button class="btn btn-ghost" type="button" [disabled]="boqSaving()"
+                      (click)="cancelEditBoq()">Cancel</button>
+                    <button class="btn btn-primary" type="button" [disabled]="boqSaving()" (click)="saveBoq()">
+                      <i [class]="boqSaving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i> Save changes
+                    </button>
+                  </div>
+                </ng-container>
+              </article>
+              <article class="detail-card">
+                <div class="card-heading">
+                  <div><span class="eyebrow">Extended scope</span>
+                    <h3>Sub-contracts</h3>
+                  </div>
+                  <button *ngIf="canManage && parentContractId()" class="btn btn-xs btn-ghost" type="button"
+                    (click)="openAddSubContract()">
+                    <i class="pi pi-plus"></i> Add sub-contract
+                  </button>
+                </div>
+                <div *ngIf="subContractsLoading()" class="table-state"><i class="pi pi-spin pi-spinner"></i> Loading
+                  sub-contracts...</div>
+                <div *ngIf="!subContractsLoading() && !subContracts().length" class="table-state">No sub-contracts
+                  yet
+                  for this contract.</div>
+                <div class="contact-list" *ngIf="!subContractsLoading() && subContracts().length">
+                  <div class="contact-row contact-row-clickable" *ngFor="let sub of subContracts()"
+                    (click)="openSubContractDetails(sub)">
+                    <div class="contact-row-info">
+                      <div class="contact-row-name">
+                        <strong>{{ sub.contractTitle }}</strong>
+                        <span class="poc-status-badge"
+                          [class.rejected]="sub.status === ContractWorkflowStatus.Rejected">
+                          {{ sub.statusName }}
+                        </span>
+                      </div>
+                      <div class="contact-row-details">
+                        <span>{{ sub.contractStartDate | date:'mediumDate' }} &rarr; {{ sub.contractEndDate |
+                          date:'mediumDate' }}</span>
+                        <span>{{ sub.billOfQuantity?.length || 0 }} item(s)</span>
+                      </div>
+                      <ng-container *ngIf="subContractDetails() as details">
+                        <div class="stage-track" *ngIf="details.status !== ContractWorkflowStatus.Rejected">
+                          <div *ngFor="let step of contractSteps; let i = index" class="stage-step"
+                            [class.done]="i < contractStepIndex(details.statusName)"
+                            [class.current]="i === contractStepIndex(details.statusName)">
+                            <span>
+                              <i class="pi pi-check" *ngIf="i < contractStepIndex(details.statusName)"></i>
+                              <ng-container *ngIf="i >= contractStepIndex(details.statusName)">{{ i + 1
+                                }}</ng-container>
+                            </span>
+                            <small>{{ step.label }}</small>
+                          </div>
+                        </div>
+
+                        <article class="action-card" *ngIf="canApproveContractStep(details.statusName)">
+                          <span class="eyebrow">Approval needed</span>
+                          <h3>Review this sub-contract step</h3>
+                          <p>{{ contractSteps[contractStepIndex(details.statusName)]?.label }} is waiting for your
+                            decision.</p>
+                          <div class="approval-actions">
+                            <button class="btn btn-primary" type="button"
+                              [disabled]="subContractActionId() === details.contractId"
+                              (click)="approveSubContractStep(details, true)">
+                              <i
+                                [class]="subContractActionId() === details.contractId ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i>
+                              Approve
+                            </button>
+                            <button class="btn btn-ghost" type="button"
+                              [disabled]="subContractActionId() === details.contractId"
+                              (click)="approveSubContractStep(details, false)">
+                              Reject
+                            </button>
+                          </div>
+                        </article>
+                      </ng-container>
+                    </div>
+                    <i class="pi pi-chevron-right"></i>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <aside class="insights-column">
+              <article class="action-card" *ngIf="canApproveContractStep(contract.statusName)">
+                <span class="eyebrow">Approval needed</span>
+                <h3>Review this contract step</h3>
+                <p>{{ contractSteps[contractStepIndex(contract.statusName)]?.label }} is waiting for your decision.
+                </p>
+                <div class="approval-actions">
+                  <button class="btn btn-primary" type="button" [disabled]="contractActionSaving()"
+                    (click)="approveContractStep(true, '')">
+                    <i [class]="contractActionSaving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i> Approve
+                  </button>
+                  <button class="btn btn-ghost" type="button" [disabled]="contractActionSaving()"
+                    (click)="approveContractStep(false, '')">Reject</button>
+                </div>
+              </article>
+              <article class="action-card"
+                *ngIf="!canApproveContractStep(contract.statusName) && contractStepRole(contract.statusName) as requiredRole">
+                <span class="eyebrow">Waiting for approval</span>
+                <h3>{{ contractSteps[contractStepIndex(contract.statusName)]?.label }}</h3>
+                <p>This step must be approved by the {{ requiredRole }}.</p>
+              </article>
+              <article class="health-card">
+                <span class="eyebrow">Contract health</span>
+                <h3>Workflow status</h3>
+                <p>Currently at <strong>{{ contract.statusName }}</strong>, started from
+                  <strong>{{ contract.startedFromStatusName }}</strong> stage.
+                </p>
+              </article>
+            </aside>
+          </div>
+        </ng-container>
+      </section>
+
+      <section class="poc-pilot-workspace" *ngIf="workspaceTab === 'delivery' && isEngineer">
+        <div class="poc-pilot-heading">
+          <div>
+            <span class="eyebrow">Fulfilment</span>
+            <h3>Delivery requests</h3>
+            <p>Request reserved units from the warehouse, then track receiving and installation.</p>
+          </div>
+        </div>
+
+        <nav class="workspace-tabs">
+          <button [class.active]="deliverySubTab() === 'create'" (click)="switchDeliverySubTab('create')">Create
+            request</button>
+          <button [class.active]="deliverySubTab() === 'my-requests'" (click)="switchDeliverySubTab('my-requests')">My
+            requests</button>
+        </nav>
+
+
+
+
+        <!-- ===== Create request ===== -->
+        <ng-container *ngIf="deliverySubTab() === 'create'">
+
+          <article class="detail-card mb-4">
+            <div class="card-heading">
+              <div>
+                <span class="eyebrow">Main contract</span>
+                <h3>Select units to deliver</h3>
+              </div>
+              <b>{{ selectedSerialIds().length }} / {{ reservedSerials().length }} selected</b>
+            </div>
+
+            <div class="table-state" *ngIf="!currentContract()">No DealDone contract found for this customer.</div>
+            <div class="table-state" *ngIf="reservedSerialsLoading()">
+              <i class="pi pi-spin pi-spinner"></i> Loading serials...
+            </div>
+            <div class="table-state"
+              *ngIf="currentContract() && !reservedSerialsLoading() && !reservedSerials().length">
+              No reserved serials available for this contract.
+            </div>
+
+            <div class="contact-list" *ngIf="reservedSerials().length">
+              <label class="contact-row contact-row-clickable" *ngFor="let serial of reservedSerials()">
+                <input type="checkbox" [checked]="selectedSerialIds().includes(serial.id)"
+                  (change)="toggleSerialSelection(serial.id)" />
+                <div class="contact-row-info">
+                  <div class="contact-row-name"><strong>{{ serial.serialNumber }}</strong></div>
+                  <div class="contact-row-details">
+                    <span>{{ serial.productName }}</span>
+                    <span>Reserved</span>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <div class="approval-actions" *ngIf="reservedSerials().length">
+              <button class="btn btn-primary" type="button"
+                [disabled]="creatingDeliveryRequest() || !selectedSerialIds().length" (click)="submitDeliveryRequest()">
+                <i [class]="creatingDeliveryRequest() ? 'pi pi-spin pi-spinner' : 'pi pi-send'"></i> Send to
+                warehouse
+              </button>
+            </div>
+          </article>
+
+          <article class="detail-card" *ngIf="deliverySubContracts().length">
+            <div class="card-heading">
+              <div>
+                <span class="eyebrow">Sub-contracts</span>
+                <h3>Select a sub-contract to deliver</h3>
+              </div>
+            </div>
+
+            <div class="contact-list">
+              <ng-container *ngFor="let sub of deliverySubContracts()">
+
+                <div class="contact-row contact-row-clickable" (click)="toggleSubContractGroup(sub)">
+                  <div class="contact-row-info">
+                    <div class="contact-row-name"><strong>{{ sub.contractTitle }}</strong></div>
+                  </div>
+                  <i class="pi" [class.pi-chevron-down]="expandedSubContractId() === sub.contractId"
+                    [class.pi-chevron-right]="expandedSubContractId() !== sub.contractId"></i>
+                </div>
+
+                <ng-container *ngIf="expandedSubContractId() === sub.contractId">
+                  <div class="table-state" *ngIf="subSerialsLoadingId() === sub.contractId">
+                    <i class="pi pi-spin pi-spinner"></i> Loading serials...
+                  </div>
+
+                  <div class="table-state"
+                    *ngIf="subSerialsLoadingId() !== sub.contractId && !(subContractSerials()[sub.contractId]?.length)">
+                    No reserved serials available for this sub-contract.
+                  </div>
+
+                  <ng-container *ngIf="subContractSerials()[sub.contractId] as serials">
+                    <ng-container *ngIf="serials.length">
+                      <div class="card-heading">
+                        <b>{{ selectedCountFor(sub.contractId) }} / {{ serials.length }} selected</b>
+                        <button class="btn btn-xs btn-ghost" type="button"
+                          (click)="toggleAllSubSerials(sub.contractId)">
+                          {{ selectedCountFor(sub.contractId) === serials.length ? 'Clear all' : 'Select all' }}
+                        </button>
+                      </div>
+
+                      <label class="contact-row contact-row-clickable" *ngFor="let serial of serials">
+                        <input type="checkbox" [checked]="isSubSerialSelected(sub.contractId, serial.id)"
+                          (change)="toggleSubSerial(sub.contractId, serial.id)" />
+                        <div class="contact-row-info">
+                          <div class="contact-row-name"><strong>{{ serial.serialNumber }}</strong></div>
+                          <div class="contact-row-details">
+                            <span>{{ serial.productName }}</span>
+                            <span>Reserved</span>
+                          </div>
+                        </div>
+                      </label>
+
+                      <div class="approval-actions">
+                        <button class="btn btn-primary" type="button"
+                          [disabled]="creatingForSubId() === sub.contractId || !selectedCountFor(sub.contractId)"
+                          (click)="submitSubDeliveryRequest(sub)">
+                          <i
+                            [class]="creatingForSubId() === sub.contractId ? 'pi pi-spin pi-spinner' : 'pi pi-send'"></i>
+                          Send to warehouse
+                        </button>
+                      </div>
+                    </ng-container>
+                  </ng-container>
+                </ng-container>
+
+              </ng-container>
+            </div>
+          </article>
+        </ng-container>
+
+
+        <!-- ===== My requests ===== -->
+        <ng-container *ngIf="deliverySubTab() === 'my-requests'">
+          <article class="detail-card">
+            <div class="card-heading">
+              <div>
+                <span class="eyebrow">History</span>
+                <h3>My delivery requests</h3>
+              </div>
+              <button class="btn btn-xs btn-ghost" type="button" (click)="loadEngineerRequests()">
+                <i class="pi pi-refresh"></i> Refresh
+              </button>
+            </div>
+
+            <div *ngIf="engineerRequestsLoading()" class="table-state"><i class="pi pi-spin pi-spinner"></i> Loading
+              requests...</div>
+            <div *ngIf="!engineerRequestsLoading() && !customerEngineerRequests().length" class="table-state">
+              No delivery requests for this customer yet.
+            </div>
+
+            <div class="contact-list" *ngIf="!engineerRequestsLoading() && customerEngineerRequests().length">
+              <div class="contact-row contact-row-clickable" *ngFor="let req of customerEngineerRequests()"
+                (click)="openEngineerRequestDetails(req.id)">
+                <div class="contact-row-info">
+                  <div class="contact-row-name">
+                    <strong>{{ req.requestNumber }}</strong>
+                    <span class="poc-status-badge" [ngClass]="deliveryStatusClass(req.status)">{{ req.status
+                      }}</span>
+                  </div>
+                  <div class="contact-row-details">
+                    <span>{{ req.contractTitle }}</span>
+                    <span>Received {{ req.receivedSerials }} / {{ req.totalSerials }}</span>
+                  </div>
+                </div>
+                <i class="pi pi-chevron-right"></i>
+              </div>
+            </div>
+          </article>
+
+          <article class="detail-card" *ngIf="engineerRequestDetailsLoading() || selectedEngineerRequest()">
+            <div *ngIf="engineerRequestDetailsLoading()" class="table-state"><i class="pi pi-spin pi-spinner"></i>
+              Loading details...</div>
+
+            <ng-container *ngIf="!engineerRequestDetailsLoading() && selectedEngineerRequest() as details">
+              <div class="card-heading">
+                <div>
+                  <span class="eyebrow">Request details</span>
+                  <h3>{{ details.requestNumber }}</h3>
+                </div>
+                <span class="poc-status-badge" [ngClass]="deliveryStatusClass(details.status)">{{ details.status
+                  }}</span>
+                <button class="btn btn-xs btn-ghost" type="button" (click)="openEngineerRequestDetails(details.id)">
+                  <i class="pi pi-refresh"></i> Refresh
+                </button>
+              </div>
+
+              <div class="detail-grid">
+                <div><label>Customer</label><strong>{{ details.customerName }}</strong></div>
+                <div><label>Contract</label><strong>{{ details.contractTitle }}</strong></div>
+                <div><label>Warehouse action</label>
+                  <strong>{{ details.warehouseActionAt ? (details.warehouseActionAt | date:'medium') : 'Pending'
+                    }}</strong>
+                </div>
+                <div><label>Received</label><strong>{{ details.receivedSerials }} / {{ details.totalSerials
+                    }}</strong>
+                </div>
+              </div>
+
+              <div class="detail-note" *ngIf="details.warehouseComment">
+                <label>Warehouse comment</label>
+                <p>{{ details.warehouseComment }}</p>
+              </div>
+
+              <a *ngIf="details.signedDocumentPath" class="business-card-file"
+                [href]="signedDocumentFullUrl(details.signedDocumentPath)" target="_blank" rel="noopener">
+                <i class="pi pi-file"></i>
+                <span><strong>Signed delivery paper</strong><small>Uploaded by warehouse</small></span>
+                <i class="pi pi-external-link"></i>
+              </a>
+
+              <div class="table-state" *ngIf="details.status === 'PendingWarehouseApproval'">Waiting for warehouse
+                approval.</div>
+
+              <div class="table-state" *ngIf="details.status === 'Approved' || details.status === 'PartiallyReceived'">
+                <i class="pi pi-mobile"></i> Receiving is done from the mobile app by scanning each serial.
+              </div>
+
+              <div class="receive-progress" *ngIf="details.totalSerials">
+                <div class="receive-progress-label">
+                  <span>Receiving progress</span>
+                  <strong>{{ details.receivedSerials }} / {{ details.totalSerials }}</strong>
+                </div>
+                <i class="progress-track"><b
+                    [style.width.%]="receivedPercent(details.receivedSerials, details.totalSerials)"></b></i>
+              </div>
+
+              <div class="contact-list">
+                <div class="contact-row" *ngFor="let serial of details.serials">
+                  <div class="contact-row-info">
+                    <div class="contact-row-name">
+                      <strong>{{ serial.serial }}</strong>
+                      <span class="poc-status-badge">{{ serial.serialStatus }}</span>
+                    </div>
+                  </div>
+                  <div class="contact-row-actions" *ngIf="canInstall(serial)">
+                    <button class="btn btn-xs btn-primary" type="button" [disabled]="deliveryActionSaving()"
+                      (click)="installSerial(serial.serial)">
+                      <i class="pi pi-wrench"></i> Mark installed
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </article>
+        </ng-container>
+      </section>
+
+      <app-customer-serials-tab *ngIf="workspaceTab === 'serials' && canReviewStageRequest"
+        [customer]="customer" />
+
+      @if (workspaceTab === 'contacts') {
+      <app-contacts-tab [contacts]="workspaceContacts()" [loading]="workspaceContactsLoading()" [canManage]="canManage"
+        (add)="openWorkspaceAddContact(customer)" (details)="openContactDetails($event)"
+        (edit)="openEditContact($event)" (remove)="deleteContact($event)"
+        (togglePrimary)="toggleWorkspacePrimary($event)"
+        (uploadCard)="uploadBusinessCard($event.contact, $event.file)" />
+      }
+    @if (workspaceTab === 'timeline') {
+    <app-timeline-tab [events]="customerTimeline()" [loading]="timelineLoading()" [canManage]="canManage"
+      (addActivity)="addActivity(customer)" />
+    }
+    </main>
+    <ng-template #noCustomer>
+      <main class="empty-workspace"><i class="pi pi-users"></i>
+        <h2>Select a customer</h2>
+        <p>Choose a customer from the portfolio to view its details.</p>
+      </main>
+    </ng-template>
+  </div>
+</div>
+
+<div *ngIf="formOpen" class="modal-overlay open" (click)="closeForm()">
+  <div class="modal customer-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">{{ form.id ? 'Edit Customer' : 'Add Customer' }}</span>
+      <button class="modal-close" type="button" (click)="closeForm()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid customer-form-grid">
+        <div class="form-group">
+          <label>Company Name *</label>
+          <input class="form-control" [class.is-invalid]="form.companyName && !isValidName(form.companyName)"
+            [ngModel]="form.companyName" (ngModelChange)="form.companyName = $event"
+            (input)="restrictToLetters($event)" />
+          <small class="field-error" *ngIf="form.companyName && !isValidName(form.companyName)">
+            Letters only, no numbers or symbols.
+          </small>
+        </div>
+        <div class="form-group">
+          <label>Location (Map Link) *</label>
+          <input class="form-control" type="url" placeholder="https://maps.google.com/..."
+            [class.is-invalid]="form.location && !isValidUrl(form.location)" [(ngModel)]="form.location" />
+          <small class="field-error" *ngIf="form.location && !isValidUrl(form.location)">
+            Must be a valid link, e.g. https://maps.google.com/...
+          </small>
+        </div>
+  <!-- Region -->
+  <div class="form-group">
+    <label>Region *</label>
+    <select class="form-control" [ngModel]="form.region" (ngModelChange)="form.region = $event; onRegionChange()">
+      <option value="" disabled>Select region</option>
+      <option *ngFor="let region of regions" [value]="region">{{ region }}</option>
+    </select>
+  </div>
+  
+  <!-- Country -->
+  <div class="form-group">
+    <label>Country *</label>
+    <select class="form-control" [ngModel]="form.country" (ngModelChange)="form.country = $event; onCountryChange()"
+      [disabled]="!form.region">
+      <option value="" disabled>{{ form.region ? 'Select country' : 'Select region first' }}</option>
+      <option *ngFor="let country of availableCountries" [value]="country">{{ country }}</option>
+    </select>
+  </div>
+  
+  <!-- City -->
+  <div class="form-group">
+    <label>City *</label>
+    <select class="form-control" [(ngModel)]="form.city" [disabled]="!form.country">
+      <option value="" disabled>{{ form.country ? 'Select city' : 'Select country first' }}</option>
+      <option *ngFor="let city of availableCities" [value]="city">{{ city }}</option>
+    </select>
+  </div>
+        <div class="form-group">
+          <label>Company No *</label>
+          <input class="form-control" type="tel" maxlength="11" inputmode="numeric"
+            [class.is-invalid]="form.phoneNumber && !isValidPhone(form.phoneNumber)" [(ngModel)]="form.phoneNumber" />
+          <small class="field-error" *ngIf="form.phoneNumber && !isValidPhone(form.phoneNumber)">
+            Must be 11 digits, e.g. 01xxxxxxxxx.
+          </small>
+        </div>
+        <div class="form-group">
+          <label>Email *</label>
+          <input class="form-control" type="email" [class.is-invalid]="form.email && !isValidEmail(form.email)"
+            [(ngModel)]="form.email" />
+          <small class="field-error" *ngIf="form.email && !isValidEmail(form.email)">Invalid email format.</small>
+        </div>
+        <div class="form-group">
+          <label>Website *</label>
+          <input class="form-control" placeholder="https://example.com" [(ngModel)]="form.website" />
+          <small class="field-error">
+            Must start with http:// or https://
+          </small>
+        </div>
+        <div class="form-group">
+          <label>Industry Type *</label>
+          <select class="form-control" [(ngModel)]="form.industryTypeId">
+            <option [ngValue]="0" disabled>Select industry</option>
+            <option *ngFor="let industry of industryTypes()" [ngValue]="industry.id">{{ industry.name }}</option>
+          </select>
+        </div>
+        <div class="form-group full-width"><label>Notes</label><textarea class="form-control" rows="3"
+            [(ngModel)]="form.notes"></textarea></div>
+      </div>
+      <div class="contacts-section">
+        <div class="contacts-section-header">
+          <span class="contacts-section-title">Contacts</span>
+          <button class="btn btn-xs btn-ghost" type="button" [disabled]="!form.id" (click)="openAddContact(form.id!)">
+            <i class="pi pi-plus"></i> Add Contact
+          </button>
+        </div>
+
+        <p *ngIf="!form.id" class="contacts-hint">Save the customer first to start adding contacts.</p>
+
+        <div *ngIf="form.id && contactsLoading()" class="table-state">
+          <i class="pi pi-spin pi-spinner"></i> Loading contacts...
+        </div>
+        <div *ngIf="form.id && !contactsLoading() && !customerContacts().length" class="table-state">
+          No contacts added yet.
+        </div>
+
+        <div class="contact-list" *ngIf="form.id && !contactsLoading() && customerContacts().length">
+          <div class="contact-row" *ngFor="let contact of customerContacts()">
+            <div class="contact-row-info">
+              <div class="contact-row-name">
+                <strong>{{ contact.name }}</strong>
+                <span *ngIf="contact.isPrimary" class="contact-primary-badge">Primary</span>
+              </div>
+              <div class="contact-row-details">
+                <span *ngIf="contact.jobTitle">{{ contact.jobTitle }}</span>
+                <span *ngIf="contact.phoneNumber">{{ contact.phoneNumber }}</span>
+                <span *ngIf="contact.email">{{ contact.email }}</span>
+              </div>
+            </div>
+            <div class="contact-row-actions">
+              <button *ngIf="!contact.isPrimary" class="btn btn-xs btn-ghost" type="button" title="Set as Primary"
+                [disabled]="savingContact()" (click)="setContactPrimary(contact)">
+                <i class="pi pi-star"></i>
+              </button>
+              <button class="btn btn-xs btn-ghost" type="button" title="Edit" (click)="openEditContact(contact)">
+                <i class="pi pi-pencil"></i>
+              </button>
+              <button class="btn btn-xs btn-ghost danger-btn" type="button" title="Delete"
+                (click)="deleteContact(contact)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" [disabled]="saving()" (click)="closeForm()">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="saving()" (click)="saveCustomer()">
+        <i [class]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i> Save Customer
+      </button>
+    </div>
+  </div>
+</div>
+<div *ngIf="contactFormOpen" class="modal-overlay open" (click)="closeContactForm()">
+  <div class="modal contact-form-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">{{ contactEditingId ? 'Edit Contact' : 'Add Contact' }}</span>
+      <button class="modal-close" type="button" [disabled]="savingContact()" (click)="closeContactForm()"><i
+          class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid customer-contact-form-grid">
+        <div class="form-group">
+          <label>Name *</label>
+          <input class="form-control" [class.is-invalid]="contactForm.name && !isValidName(contactForm.name)"
+            [ngModel]="contactForm.name" (ngModelChange)="contactForm.name = $event"
+            (input)="restrictToLetters($event)" />
+          <small class="field-error" *ngIf="contactForm.name && !isValidName(contactForm.name)">Letters only.</small>
+        </div>
+        <div class="form-group">
+          <label>Job Title</label>
+          <input class="form-control" [ngModel]="contactForm.jobTitle" (ngModelChange)="contactForm.jobTitle = $event"
+            (input)="restrictToLetters($event)" />
+        </div>
+        <div class="form-group">
+          <label>Department</label>
+          <input class="form-control" [ngModel]="contactForm.department"
+            (ngModelChange)="contactForm.department = $event" (input)="restrictToLetters($event)" />
+        </div>
+        <div class="form-group">
+          <label>Phone Number *</label>
+          <input class="form-control" type="tel" maxlength="11" inputmode="numeric"
+            [class.is-invalid]="contactForm.phoneNumber && !isValidPhone(contactForm.phoneNumber)"
+            [ngModel]="contactForm.phoneNumber" (ngModelChange)="contactForm.phoneNumber = $event"
+            (input)="restrictToDigits($event)" />
+          <small class="field-error" *ngIf="contactForm.phoneNumber && !isValidPhone(contactForm.phoneNumber)">
+            Must be 11 digits, e.g. 01xxxxxxxxx.
+          </small>
+        </div>
+        <div class="form-group">
+          <label>Alternative Phone Number</label>
+          <input class="form-control" type="tel" maxlength="11" inputmode="numeric"
+            [class.is-invalid]="contactForm.alternativePhoneNumber && !isValidPhone(contactForm.alternativePhoneNumber)"
+            [ngModel]="contactForm.alternativePhoneNumber" (ngModelChange)="contactForm.alternativePhoneNumber = $event"
+            (input)="restrictToDigits($event)" />
+          <small class="field-error"
+            *ngIf="contactForm.alternativePhoneNumber && !isValidPhone(contactForm.alternativePhoneNumber)">
+            Must be 11 digits.
+          </small>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input class="form-control" type="email"
+            [class.is-invalid]="contactForm.email && !isValidEmail(contactForm.email)"
+            [(ngModel)]="contactForm.email" />
+          <small class="field-error" *ngIf="contactForm.email && !isValidEmail(contactForm.email)">Invalid email
+            format.</small>
+        </div>
+
+        <div class="form-group"><label>Influence</label><select class="form-control"
+            [(ngModel)]="contactForm.influence">
+            <option [ngValue]="null">Select influence</option>
+            <option *ngFor="let influence of contactInfluences" [ngValue]="influence.value">{{ influence.label }}
+            </option>
+          </select></div>
+        <div class="form-group"><label>Deal Role</label><select class="form-control" [(ngModel)]="contactForm.dealRole">
+            <option [ngValue]="null">Select deal role</option>
+            <option *ngFor="let role of dealRoles" [ngValue]="role.value">{{ role.label }}</option>
+          </select></div>
+        <div class="form-group full-width"><label>Business Card</label><input class="form-control" type="file"
+            accept="image/*,.pdf" (change)="onBusinessCardSelected($event)" /><small *ngIf="contactEditingId">Uploading
+            a new file replaces the existing card; leave empty to keep it.</small></div>
+        <div class="form-group full-width"><label>Notes</label><textarea class="form-control" rows="2"
+            [(ngModel)]="contactForm.notes"></textarea></div>
+        <div class="form-group full-width checkbox-group">
+          <label><input type="checkbox" [(ngModel)]="contactForm.isPrimary" /> Set as primary contact</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" [disabled]="savingContact()"
+        (click)="closeContactForm()">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="savingContact()" (click)="saveContact()">
+        <i [class]="savingContact() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i> Save Contact
+      </button>
+    </div>
+  </div>
+</div>
+
+@if (contactDeleteTarget(); as target) {
+<app-confirm-dialog title="Delete contact" message="Are you sure you want to delete" [subject]="target.name"
+  detail="This action cannot be undone." confirmLabel="Delete" [busy]="savingContact()"
+  (confirmed)="confirmContactDelete()" (cancelled)="closeContactDeleteConfirmation()" />
+}
+<div *ngIf="industriesOpen" class="modal-overlay open" (click)="industriesOpen = false">
+  <div class="modal industries-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Industry Types</span>
+      <button class="modal-close" type="button" (click)="industriesOpen = false"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="industry-form">
+        <div class="form-group" style="flex:1">
+          <input class="form-control" placeholder="Industry name"
+            [class.is-invalid]="industryName && !isValidIndustryName(industryName)" [ngModel]="industryName"
+            (ngModelChange)="industryName = sanitizeIndustryName($event)" />
+          <small class="field-error" *ngIf="industryName && !isValidIndustryName(industryName)">
+            Letters and underscores only, at least 3 characters.
+          </small>
+        </div>
+        <button class="btn btn-primary" type="button" [disabled]="saving() || !isValidIndustryName(industryName)"
+          (click)="saveIndustry()">
+          <i [class]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i>
+          {{ industryEditingId ? 'Update' : 'Add' }}
+        </button>
+        <button *ngIf="industryEditingId" class="btn btn-ghost" type="button"
+          (click)="resetIndustryForm()">Cancel</button>
+      </div>
+      <div class="industry-list">
+        <div class="industry-row" *ngFor="let industry of industryTypes()">
+          <span>{{ industry.name }}</span>
+          <div>
+            <button class="btn btn-xs btn-ghost" type="button" (click)="editIndustry(industry)"><i
+                class="pi pi-pencil"></i></button>
+            <button class="btn btn-xs btn-ghost danger-btn" type="button" (click)="deleteIndustry(industry)"><i
+                class="pi pi-trash"></i></button>
+          </div>
+        </div>
+        <div class="table-state" *ngIf="!industryTypes().length">No industry types found.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- <div *ngIf="conversionOpen && selectedCustomer" class="modal-overlay open" (click)="closeConversion()">
+  <div class="modal conversion-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Convert to {{ conversionType === 'lead' ? 'Lead' : 'Opportunity' }}</span>
+      <button class="modal-close" type="button" (click)="closeConversion()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="conversion-company">{{ selectedCustomer.companyName }}</p>
+      <div class="form-group">
+        <label>Reason *</label>
+        <textarea class="form-control" rows="4" [(ngModel)]="conversionReason"
+          placeholder="Enter the conversion reason"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" [disabled]="saving()" (click)="closeConversion()">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="saving()" (click)="saveConversion()">
+        <i [class]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-right'"></i> Convert
+      </button>
+    </div>
+  </div>
+</div> -->
+
+<div *ngIf="directConversionOpen && directConversionCustomer" class="modal-overlay open"
+  (click)="closeDirectConversion()">
+  <div class="modal confirmation-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Confirm Conversion</span>
+      <button class="modal-close" type="button" [disabled]="saving()" (click)="closeDirectConversion()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+    <div class="modal-body confirmation-content">
+      <div class="confirmation-icon"><i class="pi pi-exclamation-triangle"></i></div>
+      <div>
+        <p>Are you sure you want to convert</p>
+        <strong>{{ directConversionCustomer.companyName }}</strong>
+        <p>to {{ directConversionType === 'poc' ? 'POC' : 'Project' }}?</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" [disabled]="saving()"
+        (click)="closeDirectConversion()">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="saving()" (click)="confirmDirectConversion()">
+        <i [class]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i>
+        Confirm Conversion
+      </button>
+    </div>
+  </div>
+</div>
+
+@if (deleteTarget(); as target) {
+<app-confirm-dialog [title]="target.type === 'customer' ? 'Delete customer' : 'Delete industry type'"
+  message="Are you sure you want to delete"
+  [subject]="target.type === 'customer' ? target.item.companyName : target.item.name"
+  detail="This action cannot be undone." confirmLabel="Delete" [busy]="saving()" (confirmed)="confirmDelete()"
+  (cancelled)="closeDeleteConfirmation()" />
+}
+
+<div *ngIf="activitiesOpen && activitiesCustomer" class="modal-overlay open" (click)="closeActivities()">
+  <div class="modal customer-activities-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div><span class="modal-title">Customer Activities</span><span class="activities-customer-name">{{
+          activitiesCustomer.companyName }}</span></div>
+      <button class="modal-close" type="button" (click)="closeActivities()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body customer-activities-body">
+      <div *ngIf="activitiesLoading()" class="table-state"><i class="pi pi-spin pi-spinner"></i> Loading activities...
+      </div>
+      <div *ngIf="!activitiesLoading() && !customerActivitiesList().length" class="table-state">No activities found for
+        this
+        customer.</div>
+
+      <div *ngIf="!activitiesLoading() && customerActivitiesList().length" class="activity-timeline">
+        <div class="timeline-item" *ngFor="let activity of customerActivitiesList()">
+          <div class="timeline-marker"><i class="pi pi-comments"></i></div>
+          <div class="timeline-card">
+            <div class="timeline-header">
+              <div><span class="activity-kind">{{ activity.activityTypeName }}</span><strong>{{ activity.subject
+                  }}</strong>
+              </div>
+              <time>{{ activity.activityDate | date:'medium' }}</time>
+            </div>
+            <div class="timeline-meta">
+              <span><i class="pi pi-tag"></i> {{ activity.customerStatusName }}</span>
+              <span><i class="pi pi-user"></i> {{ activity.createdByUserName || activity.createdByUserId }}</span>
+            </div>
+            <p *ngIf="activity.notes">{{ activity.notes }}</p>
+            <div *ngIf="activity.nextFollowUpDate" class="follow-up"><i class="pi pi-calendar"></i> Next follow-up: {{
+              activity.nextFollowUpDate | date:'medium' }}</div>
+            <div class="relationship-card-actions" *ngIf="canManage">
+              <button class="business-card-upload" type="button" (click)="editActivity(activity)">
+                <i class="pi pi-pencil"></i> Edit
+              </button>
+              <button class="relationship-card-delete" type="button" (click)="deleteActivity(activity)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button *ngIf="canManage" class="btn btn-primary" type="button" (click)="addActivity(activitiesCustomer!)">
+        <i class="pi pi-plus"></i> Add Activity
+      </button>
+    </div>
+  </div>
+</div>
+
+@if (activityDeleteTarget(); as target) {
+<app-confirm-dialog title="Delete activity" message="Are you sure you want to delete" [subject]="target.subject"
+  detail="This action cannot be undone." confirmLabel="Delete" [busy]="saving()" (confirmed)="confirmActivityDelete()"
+  (cancelled)="closeActivityDeleteConfirmation()" />
+}
+
+<div *ngIf="activityFormOpen && activityFormCustomer" class="modal-overlay open" (click)="closeActivityForm()">
+  <div class="modal customer-activity-form-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <span class="modal-title">{{ activityEditingId ? 'Edit Activity' : 'Add Activity' }}</span>
+        <span class="activities-customer-name">{{ activityFormCustomer.companyName }}</span>
+      </div>
+      <button class="modal-close" type="button" [disabled]="saving()" (click)="closeActivityForm()"><i
+          class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid customer-activity-form-grid">
+        <div class="form-group">
+          <label>Activity Type *</label>
+          <select class="form-control" [(ngModel)]="activityForm.activityType">
+            <option *ngFor="let type of activityTypes" [ngValue]="type.value">{{ type.label }}</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Activity Date *</label><input class="form-control" type="datetime-local"
+            [(ngModel)]="activityForm.activityDate" /></div>
+        <div class="form-group full-width"><label>Subject *</label><input class="form-control"
+            [(ngModel)]="activityForm.subject" /></div>
+        <div class="form-group full-width"><label>Notes</label><textarea class="form-control" rows="3"
+            [(ngModel)]="activityForm.notes"></textarea></div>
+        <div class="form-group full-width"><label>Next Follow-up Date</label><input class="form-control"
+            type="datetime-local" [(ngModel)]="activityForm.nextFollowUpDate" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" [disabled]="saving()" (click)="closeActivityForm()">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="saving()" (click)="saveCustomerActivity()">
+        <i [class]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i>
+        {{ activityEditingId ? 'Update Activity' : 'Add Activity' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- <div *ngIf="viewContactsOpen() && viewContactsCustomer()" class="modal-overlay open" (click)="closeViewContacts()">
+  <div class="modal customer-activities-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div><span class="modal-title">Contacts</span><span class="activities-customer-name">{{
+          viewContactsCustomer()?.companyName }}</span></div>
+      <button class="modal-close" type="button" (click)="closeViewContacts()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="viewContactsLoading()" class="table-state"><i class="pi pi-spin pi-spinner"></i> Loading contacts...
+      </div>
+      <div *ngIf="!viewContactsLoading() && !viewContactsList().length" class="table-state">No contacts found for this
+        customer.</div>
+
+      <div class="contact-list" *ngIf="!viewContactsLoading() && viewContactsList().length">
+        <div class="contact-row contact-row-clickable" *ngFor="let contact of viewContactsList()"
+          (click)="openContactDetails(contact)">
+          <div class="contact-row-info">
+            <div class="contact-row-name">
+              <strong>{{ contact.name }}</strong>
+              <span *ngIf="contact.isPrimary" class="contact-primary-badge">Primary</span>
+            </div>
+            <div class="contact-row-details">
+              <span *ngIf="contact.jobTitle">{{ contact.jobTitle }}</span>
+              <span *ngIf="contact.phoneNumber">{{ contact.phoneNumber }}</span>
+              <span *ngIf="contact.email">{{ contact.email }}</span>
+            </div>
+          </div>
+          <i class="pi pi-chevron-right"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> -->
+
+<div *ngIf="contactDetailsOpen()" class="modal-overlay open" (click)="closeContactDetails()">
+  <div class="modal contact-details-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Contact Details</span>
+      <button class="modal-close" type="button" (click)="closeContactDetails()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="contactDetailsLoading()" class="table-state"><i class="pi pi-spin pi-spinner"></i> Loading details...
+      </div>
+
+      <div class="contact-details-grid" *ngIf="!contactDetailsLoading() && contactDetails() as details">
+        <div class="contact-details-row">
+          <strong>{{ details.name }}</strong>
+          <span *ngIf="details.isPrimary" class="contact-primary-badge">Primary</span>
+        </div>
+        <div class="contact-details-field"><label>Job Title</label><span>{{ details.jobTitle || '-' }}</span></div>
+        <div class="contact-details-field"><label>Department</label><span>{{ details.department || '-' }}</span></div>
+        <div class="contact-details-field"><label>Phone Number</label><span>{{ details.phoneNumber || '-' }}</span>
+        </div>
+        <div class="contact-details-field"><label>Alternative Phone Number</label><span>{{
+            details.alternativePhoneNumber || '-' }}</span></div>
+        <div class="contact-details-field"><label>Email</label><span>{{ details.email || '-' }}</span></div>
+        <div class="contact-details-field"><label>Deal Role</label><span>{{ details.dealRoleName || '-' }}</span></div>
+        <div class="contact-details-field"><label>Influence</label><span>{{ details.influenceName || '-' }}</span></div>
+        <div class="contact-details-field full-width"><label>Notes</label><span>{{ details.notes || '-' }}</span></div>
+        <div class="contact-details-field full-width" *ngIf="details.businessCardUrl">
+          <label>Business Card</label>
+          <a [href]="businessCardFullUrl(details)" target="_blank" rel="noopener">{{ businessCardFileName(details)
+            }}</a>
+        </div>
+        <div class="contact-details-field"><label>Created By</label><span>{{ details.createdByUserName }}</span></div>
+        <div class="contact-details-field"><label>Created At</label><span>{{ details.createdAt | date:'medium' }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" (click)="closeContactDetails()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="upgradeFormOpen" class="modal-overlay open" (click)="closeRequestUpgrade()">
+  <div class="modal customer-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Request upgrade to {{ upgradeForm.toStatus ? statusLabel(upgradeForm.toStatus) : ''
+        }}</span>
+      <button class="modal-close" type="button" [disabled]="upgradeSaving()" (click)="closeRequestUpgrade()"><i
+          class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid customer-form-grid">
+        <div class="form-group full-width" *ngIf="allowedNextStatuses().length > 1">
+          <label>Target stage *</label>
+          <select class="form-control" [(ngModel)]="upgradeForm.toStatus"
+            (ngModelChange)="onUpgradeTargetStatusChange($event)">
+            <option *ngFor="let status of allowedNextStatuses()" [ngValue]="status">{{ statusLabel(status) }}</option>
+          </select>
+        </div>
+        <div class="upgrade-section" *ngIf="upgradeForm.toStatus === CustomerStatus.PocOrPilot">
+          <div class="upgrade-section-header">
+            <span class="eyebrow">Pilot details</span>
+          </div>
+
+          <div class="single-column-grid">
+            <div class="form-group"><label>Pilot Title *</label><input class="form-control"
+                [(ngModel)]="upgradeForm.pilotDetails.pilotTitle" /></div>
+
+            <div class="form-group">
+              <label>Pilot Type *</label>
+              <select class="form-control" [(ngModel)]="upgradeForm.pilotDetails.pilotType">
+                <option [ngValue]="null" disabled>Select pilot type</option>
+                <option *ngFor="let type of pilotTypes" [ngValue]="type.value">{{ type.label }}</option>
+              </select>
+            </div>
+
+            <div class="form-row-pair">
+              <div class="form-group"><label>Planned Start *</label><input class="form-control" type="date"
+                  [(ngModel)]="upgradeForm.pilotDetails.plannedStart" /></div>
+              <div class="form-group"><label>Planned End *</label><input class="form-control" type="date"
+                  [(ngModel)]="upgradeForm.pilotDetails.plannedEnd" /></div>
+            </div>
+
+            <div class="form-group">
+              <label>Technical Owner *</label>
+              <select class="form-control" [(ngModel)]="upgradeForm.pilotDetails.technicalOwnerId"
+                [disabled]="engineersLoading() || !engineers().length">
+                <option [ngValue]="''" disabled>
+                  {{ engineersLoading() ? 'Loading engineers...' : engineers().length ? 'Select owner' : 'No engineers available' }}
+                </option>
+                <option *ngFor="let engineer of engineers()" [ngValue]="engineer.userId">{{ engineer.userName }}</option>
+              </select>
+            </div>
+
+            <div class="form-group"><label>Objective *</label><textarea class="form-control" rows="2"
+                [(ngModel)]="upgradeForm.pilotDetails.objective"></textarea></div>
+            <div class="form-group"><label>Success Criteria *</label><textarea class="form-control" rows="2"
+                [(ngModel)]="upgradeForm.pilotDetails.successCriteria"></textarea></div>
+          </div>
+        </div>
+        <div class="upgrade-section" *ngIf="upgradeForm.toStatus === CustomerStatus.Contracted">
+          <div class="upgrade-section-header">
+            <span class="eyebrow">Contract details</span>
+          </div>
+
+          <div class="single-column-grid">
+            <div class="form-group"><label>Contract Title *</label><input class="form-control"
+                [(ngModel)]="upgradeForm.contractDetails.contractTitle" /></div>
+
+            <div class="form-row-pair">
+              <div class="form-group"><label>Contract Start Date *</label><input class="form-control" type="date"
+                  [(ngModel)]="upgradeForm.contractDetails.contractStartDate" /></div>
+              <div class="form-group"><label>Contract End Date *</label><input class="form-control" type="date"
+                  [(ngModel)]="upgradeForm.contractDetails.contractEndDate" /></div>
+            </div>
+
+            <div class="form-group"><label>Terms *</label><textarea class="form-control" rows="3"
+                [(ngModel)]="upgradeForm.contractDetails.terms"></textarea></div>
+            <div class="form-group"><label>Exclusions</label><textarea class="form-control" rows="2"
+                [(ngModel)]="upgradeForm.contractDetails.exclusions"></textarea></div>
+            <div class="form-group"><label>Comment</label><textarea class="form-control" rows="2"
+                [(ngModel)]="upgradeForm.contractDetails.comment"></textarea></div>
+          </div>
+
+          <div class="upgrade-section-header with-action">
+            <span class="eyebrow">Contract bill of quantity</span>
+            <button class="btn btn-xs btn-ghost" type="button" (click)="addContractResource()">
+              <i class="pi pi-plus"></i> Add item
+            </button>
+          </div>
+
+          <div class="boq-list">
+            <div class="boq-row" *ngFor="let resource of upgradeForm.contractDetails.resources; let i = index">
+              <input class="form-control" placeholder="Scope" [(ngModel)]="resource.scope" />
+              <select class="form-control" [(ngModel)]="resource.finishedProductId">
+                <option [ngValue]="null" disabled>Select item</option>
+                <option *ngFor="let product of finishedProducts()" [ngValue]="product.id">
+                  {{ product.name }} , Stock: {{ product.currentStock }}
+                </option>
+              </select>
+              <input class="form-control boq-qty" type="number" placeholder="Qty" [(ngModel)]="resource.qty" />
+              <button class="boq-remove" type="button" (click)="removeContractResource(i)" title="Remove item">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+            <div class="table-state" *ngIf="!upgradeForm.contractDetails.resources.length">No items added yet.</div>
+          </div>
+        </div>
+        <div class="upgrade-section" *ngIf="upgradeForm.toStatus === CustomerStatus.PocOrPilot">
+          <div class="upgrade-section-header with-action">
+            <span class="eyebrow">Pilot resources</span>
+            <button class="btn btn-xs btn-ghost" type="button" (click)="addPilotResource()">
+              <i class="pi pi-plus"></i> Add resource
+            </button>
+          </div>
+          <div class="boq-list">
+            <div class="boq-row" *ngFor="let resource of upgradeForm.pilotDetails.resources; let i = index">
+              <input class="form-control" placeholder="Scope" [(ngModel)]="resource.scope" />
+              <select class="form-control" [(ngModel)]="resource.finishedProductId">
+                <option [ngValue]="null" disabled>Select item</option>
+                <option *ngFor="let product of finishedProducts()" [ngValue]="product.id">
+                  {{ product.name }} , Stock: {{ product.currentStock }}
+                </option>
+              </select>
+              <input class="form-control boq-qty" type="number" placeholder="Qty" [(ngModel)]="resource.qty" />
+              <button class="boq-remove" type="button" (click)="removePilotResource(i)" title="Remove item">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+            <div class="table-state" *ngIf="!upgradeForm.pilotDetails.resources.length">No resources added yet.</div>
+          </div>
+        </div>
+        <div class="form-group full-width">
+          <label>Upgrade justification *</label>
+          <textarea class="form-control" rows="3" [(ngModel)]="upgradeForm.upgradeReason"
+            placeholder="Summarize the evidence that supports this stage change."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Target decision date</label>
+          <input class="form-control" type="date" [(ngModel)]="upgradeForm.targetDecisionDate" />
+        </div>
+      </div>
+
+      <div class="contacts-section" *ngIf="upgradeForm.evidences.length">
+        <div class="contacts-section-header"><span class="contacts-section-title">Required evidence</span></div>
+        <div class="evidence-grid">
+          <div *ngFor="let evidence of upgradeForm.evidences" [class.checked]="evidence.isCompleted">
+            <label><input type="checkbox" [(ngModel)]="evidence.isCompleted" /> <strong>{{ evidence.label
+                }}</strong></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-grid customer-form-grid" *ngIf="upgradeForm.toStatus === CustomerStatus.Opportunity">
+        <div class="form-group"><label>Opportunity value</label><input class="form-control" type="number"
+            [(ngModel)]="upgradeForm.opportunityDetails.opportunityValue" /></div>
+        <div class="form-group"><label>Win probability (%)</label><input class="form-control" type="number"
+            [(ngModel)]="upgradeForm.opportunityDetails.winProbability" /></div>
+        <div class="form-group"><label>Expected close date</label><input class="form-control" type="date"
+            [(ngModel)]="upgradeForm.opportunityDetails.expectedCloseDate" /></div>
+        <div class="form-group full-width"><label>Business need *</label><textarea class="form-control" rows="2"
+            [(ngModel)]="upgradeForm.opportunityDetails.businessNeed"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" [disabled]="upgradeSaving()"
+        (click)="closeRequestUpgrade()">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="upgradeSaving()" (click)="submitUpgradeRequest()">
+        <i [class]="upgradeSaving() ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-right'"></i> Submit request
+      </button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="rejectRequestOpen" class="modal-overlay open" (click)="closeRejectRequest()">
+  <div class="modal confirmation-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Return request</span>
+      <button class="modal-close" type="button" [disabled]="savingStageAction()" (click)="closeRejectRequest()"><i
+          class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Rejection reason *</label>
+        <textarea class="form-control" rows="3" [(ngModel)]="rejectReason"
+          placeholder="Explain why this stage change is being returned."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" [disabled]="savingStageAction()"
+        (click)="closeRejectRequest()">Cancel</button>
+      <button class="btn btn-danger" type="button" [disabled]="savingStageAction()" (click)="confirmRejectRequest()">
+        <i [class]="savingStageAction() ? 'pi pi-spin pi-spinner' : 'pi pi-times'"></i> Return
+      </button>
+    </div>
+  </div>
+</div>
+<div *ngIf="assignOpen() && assignCustomer() as customer" class="modal-overlay open" (click)="closeAssign()">
+  <div class="modal confirmation-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Assign Sales Owner</span>
+      <button class="modal-close" type="button" [disabled]="assigning()" (click)="closeAssign()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="conversion-company">{{ customer.companyName }}</p>
+      <p *ngIf="customer.assignedToName" class="contacts-hint">
+        Currently assigned to: <strong>{{ customer.assignedToName }}</strong>
+      </p>
+
+      <div *ngIf="salesUsersLoading()" class="table-state">
+        <i class="pi pi-spin pi-spinner"></i> Loading sales users...
+      </div>
+
+      <div class="form-group" *ngIf="!salesUsersLoading()">
+        <label>Sales owner *</label>
+        <select class="form-control" [(ngModel)]="assignSelectedUserId">
+          <option value="" disabled>Select sales owner</option>
+          <option *ngFor="let user of salesUsers()" [ngValue]="user.userId">{{ user.userName }}</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" [disabled]="assigning()" (click)="closeAssign()">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="assigning() || !assignSelectedUserId"
+        (click)="confirmAssign()">
+        <i [class]="assigning() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i> Assign
+      </button>
+    </div>
+  </div>
+</div>
+<div *ngIf="subContractFormOpen" class="modal-overlay open" (click)="closeSubContractForm()">
+  <div class="modal customer-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Add sub-contract</span>
+      <button class="modal-close" type="button" [disabled]="subContractSaving()" (click)="closeSubContractForm()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid customer-form-grid">
+        <div class="form-group full-width"><label>Contract Title *</label><input class="form-control"
+            [(ngModel)]="subContractForm.contractTitle" /></div>
+        <div class="form-group"><label>Start Date *</label><input class="form-control" type="date"
+            [(ngModel)]="subContractForm.contractStartDate" /></div>
+        <div class="form-group"><label>End Date *</label><input class="form-control" type="date"
+            [(ngModel)]="subContractForm.contractEndDate" /></div>
+        <div class="form-group full-width"><label>Terms *</label><textarea class="form-control" rows="3"
+            [(ngModel)]="subContractForm.terms"></textarea></div>
+        <div class="form-group full-width"><label>Exclusions</label><textarea class="form-control" rows="2"
+            [(ngModel)]="subContractForm.exclusions"></textarea></div>
+        <div class="form-group full-width"><label>Comments</label><textarea class="form-control" rows="2"
+            [(ngModel)]="subContractForm.comments"></textarea></div>
+      </div>
+
+      <div class="upgrade-section-header with-action">
+        <span class="eyebrow">Bill of quantity</span>
+        <button class="btn btn-xs btn-ghost" type="button" (click)="addSubContractResource()">
+          <i class="pi pi-plus"></i> Add item
+        </button>
+      </div>
+      <div class="boq-list">
+        <div class="boq-row" *ngFor="let resource of subContractForm.resources; let i = index">
+          <input class="form-control" placeholder="Scope" [(ngModel)]="resource.scope" />
+          <select class="form-control" [(ngModel)]="resource.item">
+            <option value="" disabled>Select item</option>
+            <option *ngFor="let product of finishedProducts()" [value]="product.name">
+              {{ product.name }} , Stock: {{ product.currentStock }}
+            </option>
+          </select>
+          <input class="form-control boq-qty" type="number" placeholder="Qty" [(ngModel)]="resource.qty" />
+          <button class="boq-remove" type="button" (click)="removeSubContractResource(i)" title="Remove item">
+            <i class="pi pi-trash"></i>
+          </button>
+        </div>
+        <div class="table-state" *ngIf="!subContractForm.resources.length">No items added yet.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" [disabled]="subContractSaving()"
+        (click)="closeSubContractForm()">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="subContractSaving()" (click)="submitSubContract()">
+        <i [class]="subContractSaving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i> Create sub-contract
+      </button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="subContractDetailsOpen()" class="modal-overlay open" (click)="closeSubContractDetails()">
+  <div class="modal contact-details-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Sub-contract Details</span>
+      <button class="modal-close" type="button" (click)="closeSubContractDetails()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div *ngIf="subContractDetailsLoading()" class="table-state"><i class="pi pi-spin pi-spinner"></i> Loading
+        details...</div>
+
+      <div class="contact-details-grid" *ngIf="!subContractDetailsLoading() && subContractDetails() as details">
+
+
+        <!-- ===== Approval workflow ===== -->
+        <div class="contact-details-field full-width" *ngIf="details.status !== ContractWorkflowStatus.Rejected">
+          <label>Approval progress</label>
+          <div class="stage-track">
+            <div *ngFor="let step of contractSteps; let i = index" class="stage-step"
+              [class.done]="i < contractStepIndex(details.statusName)"
+              [class.current]="i === contractStepIndex(details.statusName)">
+              <span>
+                <i class="pi pi-check" *ngIf="i < contractStepIndex(details.statusName)"></i>
+                <ng-container *ngIf="i >= contractStepIndex(details.statusName)">{{ i + 1 }}</ng-container>
+              </span>
+              <small>{{ step.label }}</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="contact-details-field full-width" *ngIf="canApproveContractStep(details.statusName)">
+          <label>Approval needed</label>
+          <span>{{ contractSteps[contractStepIndex(details.statusName)]?.label }} is waiting for your decision.</span>
+          <div class="approval-actions">
+            <button class="btn btn-primary" type="button" [disabled]="subContractActionId() === details.contractId"
+              (click)="approveSubContractStep(details, true)">
+              <i [class]="subContractActionId() === details.contractId ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i>
+              Approve
+            </button>
+            <button class="btn btn-ghost" type="button" [disabled]="subContractActionId() === details.contractId"
+              (click)="approveSubContractStep(details, false)">
+              Reject
+            </button>
+          </div>
+        </div>
+
+        <div class="contact-details-field full-width"
+          *ngIf="!canApproveContractStep(details.statusName) && contractStepRole(details.statusName) as requiredRole">
+          <label>Waiting for approval</label>
+          <span>This step must be approved by the {{ requiredRole }}.</span>
+        </div>
+
+        <div class="contact-details-row">
+          <strong>{{ details.contractTitle }}</strong>
+          <span class="poc-status-badge" [class.rejected]="details.status === ContractWorkflowStatus.Rejected">
+            {{ details.statusName }}
+          </span>
+        </div>
+        <div class="contact-details-field"><label>Started From</label><span>{{ details.startedFromStatusName
+            }}</span></div>
+        <div class="contact-details-field"><label>Start Date</label><span>{{ details.contractStartDate |
+            date:'medium' }}</span></div>
+        <div class="contact-details-field"><label>End Date</label><span>{{ details.contractEndDate | date:'medium'
+            }}</span></div>
+        <div class="contact-details-field full-width"><label>Terms</label><span>{{ details.terms || '-'
+            }}</span></div>
+        <div class="contact-details-field full-width"><label>Exclusions</label><span>{{ details.exclusions || '-'
+            }}</span></div>
+        <div class="contact-details-field full-width"><label>Comments</label><span>{{ details.comments || '-'
+            }}</span></div>
+        <div class="contact-details-field full-width" *ngIf="details.billOfQuantity?.length">
+          <label>Bill of quantity</label>
+          <div class="contact-list">
+            <div class="contact-row" *ngFor="let resource of details.billOfQuantity">
+              <div class="contact-row-info">
+                <div class="contact-row-name"><strong>{{ resource.item }}</strong></div>
+                <div class="contact-row-details">
+                  <span>{{ resource.scope }}</span>
+                  <span>Qty: {{ resource.quantity }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="contact-details-field"><label>Created At</label><span>{{ details.createdAt | date:'medium'
+            }}</span></div>
+        <div class="contact-details-field" *ngIf="details.updatedAt"><label>Updated At</label><span>{{
+            details.updatedAt | date:'medium' }}</span></div>
+
+
+
+
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" (click)="closeSubContractDetails()">Close</button>
+    </div>
+  </div>
+</div>

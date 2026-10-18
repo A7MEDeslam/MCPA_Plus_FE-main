@@ -1,0 +1,77 @@
+/* =========================================================================
+   DESIGN TOKENS
+   Same palette as the app (navy / teal / amber). One source of truth, so
+   components never hard-code hex values again.
+   Prefixed with --ui- so nothing collides with the legacy globals
+   (--border, --text, --muted ... in styles.css).
+   ========================================================================= */
+
+:root {
+  /* Type: the app already loads Plus Jakarta Sans, so we reuse it. */
+  --ui-font: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', Tahoma, sans-serif;
+  --ui-text-xs: 0.75rem;
+  --ui-text-sm: 0.8125rem;
+  --ui-text-base: 0.875rem;
+  --ui-text-md: 1rem;
+  --ui-text-lg: 1.125rem;
+  --ui-text-xl: 1.375rem;
+
+  /* Text */
+  --ui-text: #14212f;
+  --ui-text-muted: #5b6b7c;
+  --ui-text-subtle: #8b98a6;
+
+  /* Surfaces and lines */
+  --ui-page: #f7f9fb;
+  --ui-surface: #ffffff;
+  --ui-surface-muted: #f1f5f7;
+  --ui-border: #e3e8ed;
+  --ui-border-strong: #cfd8e0;
+
+  /* Brand */
+  --ui-primary: var(--teal, #0d7e8a);
+  --ui-primary-hover: #0a5b64;
+  --ui-navy: var(--navy, #1a3a5c);
+  --ui-accent: var(--amber, #d4821a);
+
+  /* Tones: fg = text/icon, bg = tint, line = hairline.
+     Used by badges, banners, icons and timeline nodes. */
+  --ui-neutral-fg: #5b6b7c;  --ui-neutral-bg: #f1f5f7;  --ui-neutral-line: #e3e8ed;
+  --ui-primary-fg: #0a5b64;  --ui-primary-bg: #e4f5f6;  --ui-primary-line: #a9dfe2;
+  --ui-success-fg: #16794f;  --ui-success-bg: #e3f6ec;  --ui-success-line: #b7ddce;
+  --ui-warning-fg: #a66a00;  --ui-warning-bg: #fff4e0;  --ui-warning-line: #f0d9a0;
+  --ui-danger-fg:  #c0392b;  --ui-danger-bg:  #fdedeb;  --ui-danger-line:  #f3c9c2;
+  --ui-info-fg:    #1d4ed8;  --ui-info-bg:    #e8effe;  --ui-info-line:    #c7d7fe;
+  --ui-violet-fg:  #7c3aed;  --ui-violet-bg:  #f1ecfe;  --ui-violet-line:  #d9d6fe;
+  --ui-orange-fg:  #c2540a;  --ui-orange-bg:  #fdece0;  --ui-orange-line:  #f5cdb0;
+
+  /* Shape */
+  --ui-radius-sm: 6px;
+  --ui-radius-md: 10px;
+  --ui-radius-lg: 14px;
+  --ui-radius-pill: 999px;
+
+  /* Elevation: hairline borders for cards, shadow only for things that float. */
+  --ui-shadow-pop: 0 24px 60px -12px rgb(15 35 50 / 0.28), 0 4px 16px rgb(15 35 50 / 0.08);
+
+  /* Focus */
+  --ui-focus: 0 0 0 3px rgb(13 126 138 / 0.28);
+
+  /* Motion */
+  --ui-dur: 140ms;
+  --ui-dur-slow: 220ms;
+  --ui-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ui-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ui-dur: 0ms;
+    --ui-dur-slow: 0ms;
+  }
+}
+
+/* Lock page scroll while a modal is open. */
+body:has(dialog.ui-modal[open]) {
+  overflow: hidden;
+}

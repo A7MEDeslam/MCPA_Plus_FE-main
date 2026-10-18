@@ -1,0 +1,198 @@
+<div class="page active" id="page-asset-receive">
+  <div class="page-header flex-between">
+    <div>
+      <h1>Asset Receipt</h1>
+      <p>Record received fixed assets into warehouse</p>
+    </div>
+    <button *ngIf="canCreate" class="btn btn-primary" (click)="openModal()">+ Record Receipt</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Receipt History</span>
+      <div class="search-input-wrapper">
+        <i class="pi pi-search search-icon"></i>
+        <input class="form-control search-input" placeholder="Search receipts..."
+          [ngModel]="arSearch()" (ngModelChange)="arSearch.set($event); pagination.currentPage.set(1)" />
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>AR #</th>
+            <th>Date</th>
+            <th>PO Ref</th>
+            <th>Items</th>
+            <th>Qty Received</th>
+            <th>Warehouse</th>
+            <th>Received By</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (pagedARs().length) {
+            @for (g of pagedARs(); track g.id) {
+              <tr>
+                <td>
+                  <span style="display:inline-flex;align-items:center;gap:6px;">
+                    <b>{{g.arNumber}}</b>
+                    <button class="btn btn-xs btn-ghost btn-icon" title="Details" (click)="showARDetails(g.id)">
+                      <i class="pi pi-info-circle"></i>
+                    </button>
+                  </span>
+                </td>
+                <td>{{g.receiptDate | date:'shortDate'}}</td>
+                <td>{{g.poNumber}}</td>
+                <td>{{g.itemsCount}} Items</td>
+                <td>{{g.totalReceivedQty | number}}</td>
+                <td>{{g.warehouseName}}</td>
+                <td>{{g.receivedBy}}</td>
+                <td><span class="badge badge-received">{{g.status}}</span></td>
+              </tr>
+            }
+          } @else {
+            <tr>
+              <td colspan="8" class="empty">No asset receipts yet</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pagination [totalItems]="filteredARs().length" [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()" (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+
+  <ng-container *ngIf="arDetailsOpen && selectedARDetails">
+    <div class="modal-overlay open" (click)="arDetailsOpen = false">
+      <div class="modal" style="max-width:720px; width:95%">
+        <div class="modal-header">
+          <span class="modal-title">Asset Receipt Details</span>
+          <button class="modal-close" (click)="arDetailsOpen = false">x</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+            <div><strong>AR #</strong>
+              <div>{{selectedARDetails.arNumber}}</div>
+            </div>
+            <div><strong>Status</strong>
+              <div>{{selectedARDetails.status}}</div>
+            </div>
+            <div><strong>Receipt Date</strong>
+              <div>{{selectedARDetails.receiptDate | date:'shortDate'}}</div>
+            </div>
+            <div><strong>Warehouse</strong>
+              <div>{{selectedARDetails.warehouseName}}</div>
+            </div>
+            <div><strong>PO Ref</strong>
+              <div>{{selectedARDetails.poNumber}}</div>
+            </div>
+            <div><strong>Received By</strong>
+              <div>{{selectedARDetails.receivedBy}}</div>
+            </div>
+          </div>
+          <div style="margin-top:20px; overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr>
+                  <th style="padding:8px; text-align:left;">Asset</th>
+                  <th style="padding:8px;">Account No</th>
+                  <th style="padding:8px;">Received Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of selectedARDetails.items || []">
+                  <td style="padding:8px;">{{item.assetName}}</td>
+                  <td style="padding:8px;">{{item.assetAccountNo}}</td>
+                  <td style="padding:8px;">{{item.receivedQty}}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" (click)="arDetailsOpen = false">Close</button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>
+
+@if (modalOpen) {
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+  <div class="modal" style="max-width: 700px; width: 90%;">
+    <div class="modal-header">
+      <span class="modal-title">Record Asset Receipt</span>
+      <button class="modal-close" (click)="closeModal()">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>PO Reference</label>
+          <app-searchable-select [(ngModel)]="arForm.poRef" (ngModelChange)="fillARFromPO()" [options]="poOptions()"
+            placeholder="Select PO" searchPlaceholder="Search purchase orders..." [allowEmpty]="true"
+            emptyLabel="-- Select PO --">
+          </app-searchable-select>
+        </div>
+        <div class="form-group">
+          <label>Warehouse</label>
+          <div class="form-control" style="background:var(--bg,#f8fafc); cursor:default; display:flex; align-items:center; gap:6px;">
+            <i class="pi pi-warehouse" style="color:var(--muted,#64748b)"></i>
+            <span *ngIf="assetWarehouseName">{{ assetWarehouseName }}</span>
+            <span *ngIf="!assetWarehouseName" style="color:#e74c3c; font-size:12px">No asset warehouse configured</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Receipt Date</label>
+          <input class="form-control" type="date" [(ngModel)]="arForm.date" />
+        </div>
+        <div class="form-group">
+          <label>Received By</label>
+          <input class="form-control" placeholder="Name" [(ngModel)]="arForm.by" />
+        </div>
+      </div>
+
+      @if (arItems.length > 0) {
+        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+          <h3 style="margin-bottom: 12px; font-size: 1.1rem; color: #2c3e50;">Items in Purchase Order</h3>
+          <div style="max-height: 250px; overflow-y: auto;">
+            <table class="receipt-items-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 2px solid #ddd; background: #f9f9f9;">
+                  <th style="padding: 8px;">Asset</th>
+                  <th style="padding: 8px;">Ordered</th>
+                  <th style="padding: 8px;">Received</th>
+                  <th style="padding: 8px;">Remaining</th>
+                  <th style="padding: 8px; width: 130px;">Qty to Receive</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of arItems; track item.assetPurchaseOrderItemId) {
+                  <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 8px;">
+                      <b>{{item.assetName}}</b>
+                      <div style="font-size: 0.8rem; color: #7f8c8d;">{{item.assetAccountNo}}</div>
+                    </td>
+                    <td style="padding: 8px;">{{item.orderedQty}}</td>
+                    <td style="padding: 8px;">{{item.receivedQty}}</td>
+                    <td style="padding: 8px; color: #e67e22; font-weight: bold;">{{item.remainingQty}}</td>
+                    <td style="padding: 8px;">
+                      <input class="form-control" type="number" min="0" [max]="item.remainingQty"
+                        [(ngModel)]="item.qtyToReceive" style="padding: 4px 8px; height: 32px;" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="closeModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="saveAR()">Confirm Receipt</button>
+    </div>
+  </div>
+</div>
+}

@@ -1,0 +1,96 @@
+<div class="page active" id="page-rawwh">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-warehouse" style="margin-right: 8px;"></i>Raw Material Warehouse</h1>
+      <p>Current stock levels of all raw materials</p>
+    </div>
+    @if (canCreateMaterial) {
+    <button class="btn btn-primary" type="button" (click)="openAddMaterial()"><i class="pi pi-plus"></i> Add raw material</button>
+    }
+  </div>
+  <div class="stat-grid" id="raw-stats">
+    <div class="stat-card"><div class="stat-label">Total SKUs</div><div class="stat-value">{{masterData.RAW_ITEMS().length}}</div><div class="stat-sub">Raw materials tracked</div></div>
+    <div class="stat-card amber"><div class="stat-label">Total Units</div><div class="stat-value">{{totalUnits() | number}}</div><div class="stat-sub">Combined stock</div></div>
+    <div class="stat-card red"><div class="stat-label">Low / Critical</div><div class="stat-value">{{lowRMs()}}</div><div class="stat-sub">Below minimum level</div></div>
+    <div class="stat-card navy"><div class="stat-label">Total Transactions</div><div class="stat-value">{{inventory.Transactions().length}}</div><div class="stat-sub">Recent inventory movements</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Stock Balances</span>
+      <div class="search-input-wrapper">
+        <i class="pi pi-search search-icon"></i>
+        <input class="form-control search-input" placeholder="Search stock..." [ngModel]="stockSearch()" (ngModelChange)="stockSearch.set($event); pagination.currentPage.set(1)" />
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table><thead><tr><th>Item Code</th><th>Description</th><th>Unit</th><th>In Stock</th><th>Min Level</th><th>Status</th><th>Last Receipt</th><th>Actions</th></tr></thead>
+      <tbody id="rawwh-tbody">
+        @for (s of pagedStockValues(); track s.code) {
+          <tr><td><b>{{s.code}}</b></td><td>{{s.name}}</td><td>{{s.unit}}</td><td><b>{{s.qty | number}}</b>
+            <div class="progress-bar"><div class="progress-fill" [style.width.%]="s.pct" [style.background]="s.color"></div></div>
+          </td><td>{{s.minStock}}</td><td><span class="stock-status-badge" [class]="'status-'+s.status">{{s.label}}</span></td><td>{{s.lastDate}}</td><td><button class="icon-btn" type="button" title="Edit raw material" aria-label="Edit raw material" (click)="openMaterialEdit(s)"><i class="pi pi-pencil"></i></button></td></tr>
+        }
+      </tbody></table>
+    </div>
+    <app-pagination
+      [totalItems]="rawStockValues().length"
+      [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()"
+      (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+</div>
+
+@if (addMaterialOpen) {
+<div class="modal-overlay open" (click)="closeAddMaterial()">
+  <div class="modal raw-material-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title"><i class="pi pi-plus-circle"></i> Add Raw Material</span>
+      <button class="modal-close" type="button" (click)="closeAddMaterial()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-intro"><span class="eyebrow">Material master</span><p>Create the raw material first. The item code is generated automatically. Stock quantities are received later through Goods Receipts.</p></div>
+      <div class="form-grid">
+        <div class="form-group full-width"><label>Material name <span class="required">*</span></label><input class="form-control" placeholder="e.g. Copper Wire" [ngModel]="materialForm.name" (ngModelChange)="onMaterialNameInput($event)" (blur)="normalizeMaterialNameInput()" autocomplete="off" />
+          @if (materialNameMatches().length && !exactMaterialMatch()) {
+          <div class="material-suggestions"><span class="suggestion-label">Similar materials</span>@for (match of materialNameMatches(); track match.id) {<button type="button" class="material-suggestion" (click)="chooseMaterialSuggestion(match.name)">{{match.name}} <small>{{match.code}}</small></button>}</div>
+          }
+          @if (exactMaterialMatch(); as existingMaterial) {
+          <div class="duplicate-warning"><i class="pi pi-info-circle"></i><span><strong>{{existingMaterial.name}}</strong> already exists. Choose a different name or edit the existing material.</span></div>
+          }
+        </div>
+        <div class="form-group"><label>Unit <span class="required">*</span></label><input class="form-control" placeholder="e.g. KG, M, PCS" [(ngModel)]="materialForm.unit" /></div>
+        <div class="form-group"><label>Minimum stock level</label><input class="form-control" type="number" min="0" [(ngModel)]="materialForm.minStockLevel" /></div>
+      </div>
+      <div class="links-section">
+        <div class="links-section-header"><div><label>Links <span class="required">*</span></label><small class="field-help">Add at least one reference link for this material.</small></div><button class="btn btn-xs btn-ghost" type="button" (click)="addMaterialLink()"><i class="pi pi-plus"></i> Add link</button></div>
+        @for (link of materialForm.links; track $index) {
+        <div class="material-link-row"><div class="form-group"><input class="form-control" type="url" placeholder="https://..." [(ngModel)]="link.url" [class.invalid]="link.url.trim() && !isValidHttpUrl(link.url)" /><small class="error-text" *ngIf="link.url.trim() && !isValidHttpUrl(link.url)">Enter a valid http(s) link.</small></div><input class="form-control" placeholder="Label (optional)" [(ngModel)]="link.label" /><button class="btn btn-xs btn-ghost" type="button" (click)="removeMaterialLink($index)">Remove</button></div>
+        }
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" type="button" (click)="closeAddMaterial()">Cancel</button><button class="btn btn-primary" type="button" [disabled]="materialSaving || !materialForm.name.trim() || !materialForm.unit.trim() || !hasValidMaterialLink() || !!exactMaterialMatch()" (click)="saveMaterial()">{{ materialSaving ? 'Saving...' : 'Add raw material' }}</button></div>
+  </div>
+</div>
+}
+
+@if (editMaterialOpen) {
+<div class="modal-overlay open" (click)="closeMaterialEdit()">
+  <div class="modal raw-material-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title"><i class="pi pi-pencil"></i> Edit Raw Material</span>
+      <button class="modal-close" type="button" (click)="closeMaterialEdit()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-intro"><span class="eyebrow">Material master</span><p>Update the master data only. Stock quantities and receipts are managed separately.</p></div>
+      <div class="form-grid">
+        <div class="form-group"><label>Item code</label><input class="form-control" [value]="materialForm.code" readonly /></div>
+        <div class="form-group"><label>Material name <span class="required">*</span></label><input class="form-control" [(ngModel)]="materialForm.name" /></div>
+        <div class="form-group"><label>Unit <span class="required">*</span></label><input class="form-control" [(ngModel)]="materialForm.unit" /></div>
+        <div class="form-group"><label>Minimum stock level</label><input class="form-control" type="number" min="0" [(ngModel)]="materialForm.minStockLevel" /></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" type="button" (click)="closeMaterialEdit()">Cancel</button><button class="btn btn-primary" type="button" [disabled]="materialSaving || !materialForm.name.trim() || !materialForm.unit.trim()" (click)="saveMaterialEdit()">{{ materialSaving ? 'Saving...' : 'Save changes' }}</button></div>
+  </div>
+</div>
+}

@@ -1,0 +1,210 @@
+<div class="page active" id="page-receive">
+  <div class="page-header flex-between">
+    <div><h1><i class="pi pi-inbox" style="margin-right: 8px;"></i>Goods Receipt</h1><p>Record received raw materials into warehouse</p></div>
+    <button *ngIf="canCreate" class="btn btn-primary" (click)="openModal()">+ Record Receipt</button>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Receipt History</span>
+      <div class="search-input-wrapper">
+        <i class="pi pi-search search-icon"></i>
+        <input class="form-control search-input" placeholder="Search receipts..." [(ngModel)]="grSearch" (ngModelChange)="pagination.currentPage.set(1)" />
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table><thead><tr><th>GR #</th><th>Date</th><th>PO Ref</th><th>Items</th><th>Qty Received</th><th>Warehouse</th><th>Received By</th><th>Status</th></tr></thead>
+      <tbody id="gr-tbody">
+        @if (pagedGRs().length) {
+          @for (g of pagedGRs(); track g.id) {
+            <tr>
+              <td>
+                <span style="display:inline-flex;align-items:center;gap:6px;">
+                  <b>{{g.grNumber}}</b>
+                  <button class="btn btn-xs btn-ghost btn-icon" title="Details" (click)="showGRDetails(g.id)"><i class="pi pi-info-circle"></i></button>
+                </span>
+              </td>
+              <td>{{g.receiptDate | date:'shortDate'}}</td>
+              <td>{{g.poNumber}}</td>
+              <td>{{g.itemsCount}} Items</td>
+              <td>{{g.totalReceivedQty | number}}</td>
+              <td>{{g.warehouseName}}</td>
+              <td>{{g.receivedBy}}</td>
+              <td><span class="badge badge-received">{{g.status}}</span></td>
+            </tr>
+          }
+        } @else {
+          <tr><td colspan="8" class="empty">No receipts yet</td></tr>
+        }
+      </tbody></table>
+    </div>
+    <app-pagination
+      [totalItems]="filteredGRs().length"
+      [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()"
+      (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+
+  <ng-container *ngIf="grDetailsOpen && selectedGRDetails">
+    <div class="modal-overlay open" (click)="closeModalIfOverlay($event, 'modal-gr-details')">
+      <div class="modal gr-details-modal">
+        <div class="modal-header">
+          <span class="modal-title">Goods Receipt Details</span>
+          <button class="modal-close" (click)="grDetailsOpen = false"><i class="pi pi-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid" style="grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+            <div><strong>GR #</strong><div>{{selectedGRDetails.grNumber}}</div></div>
+            <div><strong>Status</strong><div>{{selectedGRDetails.status}}</div></div>
+            <div><strong>Receipt Date</strong><div>{{selectedGRDetails.receiptDate | date:'shortDate'}}</div></div>
+            <div><strong>Warehouse</strong><div>{{selectedGRDetails.warehouseName}}</div></div>
+            <div><strong>PO Ref</strong><div>{{selectedGRDetails.poNumber}}</div></div>
+            <div><strong>Received By</strong><div>{{selectedGRDetails.receivedBy}}</div></div>
+            <div><strong>Total Amount</strong>
+              <div style="font-weight:600; color:#2d7d46;">{{getGRTotalAmount(selectedGRDetails.items) | number:'1.2-2'}} EGP</div>
+            </div>
+          </div>
+          <div class="gr-details-table-wrapper">
+        <table class="gr-details-table">
+          <thead>
+            <tr>
+              <th>Material</th>
+              <th>Received Qty</th>
+              <th>Unit</th>
+              <th>Unit Price</th>
+              <th>Actual Unit Price</th>
+              <th>Total</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="grDetailsLoading">
+              <td colspan="7" style="text-align:center; padding: 16px; color: #888;">
+                <i class="pi pi-spin pi-spinner" style="margin-right: 8px;"></i>Loading items...
+              </td>
+            </tr>
+            <tr *ngIf="!grDetailsLoading && !(selectedGRDetails.items?.length)">
+              <td colspan="7" style="text-align:center; padding: 16px; color: #888;">
+                No items found for this receipt.
+              </td>
+            </tr>
+            <tr *ngFor="let item of grDetailsLoading ? [] : (selectedGRDetails.items || [])">
+              <td class="material-cell">{{item.rawMaterialName || item.rawMaterial?.name}}</td>
+              <td>{{item.receivedQty | number}}</td>
+              <td>{{item.unit}}</td>
+              <td>{{item.unitPrice | number:'1.2-2'}}</td>
+              <td class="actual-price-cell">
+                <input
+                  *ngIf="editingActualPriceItemId === item.id"
+                  class="form-control"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  [(ngModel)]="actualPriceValue"
+                  style="height:32px; padding:4px 8px;"
+                  placeholder="Actual price" />
+                <ng-container *ngIf="editingActualPriceItemId !== item.id">
+                  {{item.actualUnitPrice == null ? '-' : (item.actualUnitPrice | number:'1.2-2')}}
+                </ng-container>
+              </td>
+              <td>{{item.receivedAmount ?? ((item.receivedQty || 0) * (item.unitPrice || 0)) |
+                number:'1.2-2'}} EGP</td>
+              <td class="actions-cell">
+                <ng-container *ngIf="editingActualPriceItemId === item.id; else actualPriceAction">
+                  <button class="btn btn-xs btn-primary" [disabled]="savingActualPrice" (click)="saveActualPrice(item)">
+                    <i [class]="savingActualPrice ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i>
+                    Save
+                  </button>
+                  <button class="btn btn-xs btn-ghost" [disabled]="savingActualPrice" (click)="cancelActualPriceEdit()">Cancel</button>
+                </ng-container>
+                <ng-template #actualPriceAction>
+                  <button class="btn btn-xs btn-ghost" (click)="startActualPriceEdit(item)">
+                    <i [class]="item.actualUnitPrice == null ? 'pi pi-plus' : 'pi pi-pencil'"></i>
+                    {{item.actualUnitPrice == null ? 'Add Actual Price' : 'Edit'}}
+                  </button>
+                </ng-template>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr style="border-top:2px solid #eee; font-weight:bold;">
+              <td colspan="5" style="padding:8px; text-align:right;">Grand Total:</td>
+              <td style="padding:8px; color:#2d7d46;">{{getGRTotalAmount(selectedGRDetails.items) | number:'1.2-2'}} EGP</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" (click)="grDetailsOpen = false">Close</button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>
+
+@if (modalOpen) {
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+  <div class="modal" style="max-width: 700px; width: 90%;">
+    <div class="modal-header"><span class="modal-title">Record Goods Receipt</span><button class="modal-close" (click)="closeModal()"><i class="pi pi-times"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>PO Reference</label>
+          <app-searchable-select
+            [(ngModel)]="grForm.poRef"
+            (ngModelChange)="fillGRFromPO()"
+            [options]="poOptions()"
+            placeholder="Select PO"
+            searchPlaceholder="Search purchase orders..."
+            [allowEmpty]="true"
+            emptyLabel="-- Select PO --">
+          </app-searchable-select>
+        </div>
+        <div class="form-group"><label>Receipt Date</label><input class="form-control" type="date" [(ngModel)]="grForm.date"/></div>
+        <div class="form-group"><label>Received By</label><input class="form-control" placeholder="Name" [(ngModel)]="grForm.by"/></div>
+      </div>
+
+      <!-- PO Items to Receive -->
+      @if (grItems.length > 0) {
+        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+          <h3 style="margin-bottom: 12px; font-size: 1.1rem; color: #2c3e50;">Items in Purchase Order</h3>
+          <div style="max-height: 250px; overflow-y: auto;">
+            <table class="receipt-items-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 2px solid #ddd; background: #f9f9f9;">
+                  <th style="padding: 8px;">Material</th>
+                  <th style="padding: 8px;">Ordered</th>
+                  <th style="padding: 8px;">Received</th>
+                  <th style="padding: 8px;">Remaining</th>
+                  <th style="padding: 8px; width: 130px;">Qty to Receive</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of grItems; track item.purchaseOrderItemId) {
+                  <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 8px;">
+                      <b>{{item.rawMaterialName}}</b>
+                      <div style="font-size: 0.8rem; color: #7f8c8d;">{{item.rawMaterialCode}}</div>
+                    </td>
+                    <td style="padding: 8px;">{{item.orderedQty}} {{item.unit}}</td>
+                    <td style="padding: 8px;">{{item.receivedQty}} {{item.unit}}</td>
+                    <td style="padding: 8px; color: #e67e22; font-weight: bold;">{{item.remainingQty}} {{item.unit}}</td>
+                    <td style="padding: 8px;">
+                      <input class="form-control" type="number" min="0" [max]="item.remainingQty" [(ngModel)]="item.qtyToReceive" style="padding: 4px 8px; height: 32px;" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="closeModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="saveGR()">Confirm Receipt</button>
+    </div>
+  </div>
+</div>
+}

@@ -1,0 +1,266 @@
+<div class="page active" id="page-finished-products">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-tag" style="margin-right: 8px;"></i>Finished Products</h1>
+      <p>Manage product SKUs, serial prefixes, and finished goods master data</p>
+    </div>
+    <button *ngIf="canCreate" class="btn btn-primary" (click)="openCreate()">
+      <i class="pi pi-plus"></i> New Finished Product
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <i class="pi pi-box stat-icon"></i>
+      <div>
+        <div class="stat-value">{{ totalProducts() }}</div>
+        <div class="stat-label">Total Products</div>
+      </div>
+    </div>
+    <div class="stat-card stat-ok">
+      <i class="pi pi-check-circle stat-icon"></i>
+      <div>
+        <div class="stat-value">{{ inStockCount() }}</div>
+        <div class="stat-label">In Stock</div>
+      </div>
+    </div>
+    <div class="stat-card stat-bad">
+      <i class="pi pi-exclamation-circle stat-icon"></i>
+      <div>
+        <div class="stat-value">{{ outOfStockCount() }}</div>
+        <div class="stat-label">Out of Stock</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Registered Products</span>
+      <div class="search-input-wrapper">
+        <i class="pi pi-search search-icon"></i>
+        <input class="form-control search-input" placeholder="Search by name, code, model, prefix..."
+          [ngModel]="productSearch()" (ngModelChange)="productSearch.set($event); pagination.currentPage.set(1)" />
+      </div>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Product</th>
+            <th>Serial Prefix</th>
+            <th>Start Serial</th>
+            <th>Stock</th>
+            <th>Total Produced</th>
+            <th>Last Production</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (pagedProducts().length) {
+          @for (p of pagedProducts(); track p.id) {
+          <tr>
+            <td><b>{{p.code || '-'}}</b></td>
+            <td>
+              <div class="product-cell">
+                <span class="avatar">{{ (p.name || '?').charAt(0).toUpperCase() }}</span>
+                <div>
+                  <div class="product-name">{{p.name}}</div>
+                  <div class="product-model">{{p.modelType || 'No model type'}}</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="chip">{{p.serialPrefix}}</span></td>
+            <td>{{p.serialStartNumber ?? 0}}</td>
+            <td>
+              <span class="stock-badge" [class.stock-out]="!(p.currentStock > 0)">
+                {{p.currentStock || 0}}
+              </span>
+            </td>
+            <td>{{p.totalProduced || 0}}</td>
+            <td>{{p.lastProductionDate ? (p.lastProductionDate | date: 'mediumDate') : '-'}}</td>
+            <td>
+              <div style="display:flex; gap:6px">
+                <button *ngIf="canViewSerials" class="btn btn-sm btn-ghost" (click)="viewProductSerials(p.id)" title="View serials">
+                  <i class="pi pi-id-card"></i> Serials
+                </button>
+                <button *ngIf="canEdit" class="btn btn-sm btn-ghost" (click)="openEdit(p)" title="Edit">
+                  <i class="pi pi-pencil"></i></button>
+                <button *ngIf="canDelete" class="btn btn-sm btn-danger" (click)="openDelete(p)" title="Delete">
+                  <i class="pi pi-trash"></i></button>
+              </div>
+            </td>
+          </tr>
+          }
+          } @else {
+          <tr>
+            <td colspan="8" class="empty">No products found</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <app-pagination [totalItems]="filteredProducts().length" [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()" (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+</div>
+
+<!-- ── Shared form fields ── -->
+<ng-template #fields let-f let-errs="errs">
+  <div class="form-grid">
+    <div class="form-group">
+      <label><i class="pi pi-tag"></i> Name <span class="req">*</span></label>
+      <div class="product-name-picker-row">
+        <app-searchable-select style="flex:1" [options]="productNameOptions()" [(ngModel)]="f.name"
+          placeholder="Select finished product name" searchPlaceholder="Search finished product names...">
+        </app-searchable-select>
+        <div class="product-name-actions">
+          <button *ngIf="canCreate" type="button" class="btn btn-ghost" (click)="addingProductName = !addingProductName">
+            <i class="pi pi-plus"></i> Add name
+          </button>
+          <button *ngIf="canEdit || canDelete" type="button" class="btn btn-ghost"
+            (click)="managingProductNames = !managingProductNames">
+            <i class="pi pi-cog"></i> Manage names
+          </button>
+        </div>
+      </div>
+      <div *ngIf="addingProductName" style="display:flex;gap:8px;margin-top:8px">
+        <input class="form-control" style="flex:1" placeholder="New finished product name" maxlength="100"
+          [(ngModel)]="newProductName" />
+        <button type="button" class="btn btn-primary" [disabled]="savingProductName || !newProductName.trim()"
+          (click)="addProductName()">{{ savingProductName ? 'Saving...' : 'Save' }}</button>
+        <button type="button" class="btn btn-ghost" (click)="addingProductName = false">Cancel</button>
+      </div>
+      <div *ngIf="managingProductNames" style="margin-top:10px;border:1px solid var(--border-color, #ddd);border-radius:6px;padding:10px">
+        <div class="search-input-wrapper" style="margin-bottom:10px">
+          <i class="pi pi-search search-icon"></i>
+          <input class="form-control search-input" placeholder="Search finished product names..."
+            [ngModel]="productNameManagementSearch()" (ngModelChange)="productNameManagementSearch.set($event)" />
+        </div>
+        <div *ngFor="let item of filteredManagedProductNames()" style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <ng-container *ngIf="editingProductName?.id !== item.id; else editFinishedProductName">
+            <span style="flex:1">{{ item.name }}</span>
+            <button *ngIf="canEdit" type="button" class="btn btn-ghost"
+              (click)="editingProductName = { id: item.id, name: item.name }" aria-label="Edit name"><i class="pi pi-pencil"></i></button>
+            <button *ngIf="canDelete" type="button" class="btn btn-ghost" (click)="deleteProductName(item)"
+              aria-label="Delete name"><i class="pi pi-trash"></i></button>
+          </ng-container>
+          <ng-template #editFinishedProductName>
+            <input class="form-control" style="flex:1" [(ngModel)]="editingProductName!.name" maxlength="100" />
+            <button type="button" class="btn btn-primary" [disabled]="savingProductName" (click)="saveProductNameEdit()">Save</button>
+            <button type="button" class="btn btn-ghost" (click)="editingProductName = null">Cancel</button>
+          </ng-template>
+        </div>
+        <small *ngIf="!filteredManagedProductNames().length">
+          {{ productNameManagementSearch().trim() ? 'No matching finished product names.' : 'No finished product names found.' }}
+        </small>
+      </div>
+      <div class="field-meta">
+        <small class="error-text">{{ showError(errs, 'name', f.name) }}</small>
+        <small class="counter">{{ f.name.length }}/100</small>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label><i class="pi pi-cog"></i> Model Type</label>
+      <input class="form-control" [class.invalid]="showError(errs, 'modelType', f.modelType)" maxlength="50"
+        placeholder="e.g. GenieAgro6600" [(ngModel)]="f.modelType" (input)="onModelInput($event, f)" />
+      <div class="field-meta">
+        <small class="error-text">{{ showError(errs, 'modelType', f.modelType) }}</small>
+        <small class="counter">{{ f.modelType.length }}/50</small>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label><i class="pi pi-hashtag"></i> Serial Prefix <span class="req">*</span></label>
+      <input class="form-control mono" [class.invalid]="showError(errs, 'serialPrefix', f.serialPrefix)" maxlength="10"
+        placeholder="e.g. CPU" [(ngModel)]="f.serialPrefix" (input)="onPrefixInput($event, f)" />
+      <div class="field-meta">
+        <small class="error-text">{{ showError(errs, 'serialPrefix', f.serialPrefix) }}</small>
+        <small class="counter">{{ f.serialPrefix.length }}/10</small>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label><i class="pi pi-sort-numeric-up"></i> Serial Start Number <span class="req">*</span></label>
+      <input class="form-control mono" [class.invalid]="showError(errs, 'serialStartNumber', f.serialStartNumber)"
+        type="text" inputmode="numeric" maxlength="9" placeholder="0" [(ngModel)]="f.serialStartNumber"
+        (input)="onNumberInput($event, f)" />
+      <div class="field-meta">
+        <small class="error-text">{{ showError(errs, 'serialStartNumber', f.serialStartNumber) }}</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="serial-preview">
+    <i class="pi pi-eye"></i>
+    <span>First serial preview:</span>
+    <code>{{ serialPreview(f) }}</code>
+  </div>
+</ng-template>
+
+<!-- ── Create modal ── -->
+@if (modalOpen) {
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title"><i class="pi pi-plus-circle"></i> New Finished Product</span>
+      <button class="modal-close" (click)="closeAll()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <ng-container *ngTemplateOutlet="fields; context: { $implicit: form, errs: createErrors }"></ng-container>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="closeAll()">Cancel</button>
+      <button class="btn btn-primary" (click)="saveProduct()">Save Product</button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ── Edit modal ── -->
+@if (editModalOpen) {
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title"><i class="pi pi-pencil"></i> Edit Finished Product</span>
+      <button class="modal-close" (click)="closeAll()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <ng-container *ngTemplateOutlet="fields; context: { $implicit: editForm, errs: editErrors }"></ng-container>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" [disabled]="isSaving" (click)="closeAll()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="isSaving" (click)="saveEdit()">
+        {{ isSaving ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ── Delete confirm modal ── -->
+@if (deleteModalOpen && deleteTarget) {
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title"><i class="pi pi-exclamation-triangle"></i> Delete Product</span>
+      <button class="modal-close" (click)="closeAll()"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p>Are you sure you want to delete <strong>{{deleteTarget.name}}</strong>?</p>
+      <p class="warning-text">This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" [disabled]="isDeleting" (click)="closeAll()">Cancel</button>
+      <button class="btn btn-danger" [disabled]="isDeleting" (click)="confirmDelete()">
+        {{ isDeleting ? 'Deleting...' : 'Delete' }}
+      </button>
+    </div>
+  </div>
+</div>
+}

@@ -1,0 +1,55 @@
+<section class="serials-workspace">
+  <header class="serials-heading">
+    <div>
+      <span class="eyebrow">Customer assets</span>
+      <h3>Serial numbers</h3>
+      <p>Serials associated with {{ customer().companyName }}.</p>
+    </div>
+    <span class="serials-count" *ngIf="!loading()">
+      {{ serials().length }} {{ serials().length === 1 ? 'serial' : 'serials' }}
+    </span>
+  </header>
+
+  <div class="serials-state" *ngIf="loading()" role="status">
+    <i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Loading serial numbers...
+  </div>
+
+  <div class="serials-state serials-error" *ngIf="!loading() && hasError()" role="alert">
+    <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+    <span>Serial numbers could not be loaded.</span>
+    <button class="btn btn-ghost btn-xs" type="button" (click)="retry()">Try again</button>
+  </div>
+
+  <div class="serials-empty" *ngIf="!loading() && !hasError() && !serials().length">
+    <span class="serials-empty-icon"><i class="pi pi-box" aria-hidden="true"></i></span>
+    <strong>No serial numbers yet</strong>
+    <span>Serial numbers for this customer will appear here.</span>
+  </div>
+
+  <div class="serials-table-wrap" *ngIf="!loading() && !hasError() && serials().length">
+    <table class="serials-table">
+      <thead>
+        <tr>
+          <th>Serial number</th>
+          <th>Product</th>
+          <th>Contract</th>
+          <th>Status</th>
+          <th>Reserved</th>
+          <th>Produced</th>
+          <th>Sold</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let serial of serials()">
+          <td><strong class="serial-code">{{ serial.serial }}</strong></td>
+          <td>{{ serial.finishedProductName || '—' }}</td>
+          <td>{{ serial.contractTitle || '—' }}</td>
+          <td><span class="serial-status">{{ serial.status || '—' }}</span></td>
+          <td>{{ serial.reservedAt ? (serial.reservedAt | date:'mediumDate') : '—' }}</td>
+          <td>{{ serial.productionDate ? (serial.productionDate | date:'mediumDate') : '—' }}</td>
+          <td>{{ serial.soldDate ? (serial.soldDate | date:'mediumDate') : '—' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>

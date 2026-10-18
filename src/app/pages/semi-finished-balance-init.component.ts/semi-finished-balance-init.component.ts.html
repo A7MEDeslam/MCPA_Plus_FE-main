@@ -1,0 +1,170 @@
+
+<div class="page-header">
+  <div class="header-left">
+    <i class="pi pi-chart-bar page-icon"></i>
+    <div>
+      <h1>Semi-Finished Balance Initialize</h1>
+      <p class="subtitle">Manage semi-finished product stock initializations and adjustments</p>
+    </div>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button *ngIf="isCeo" class="btn" [class.btn-danger]="!pageDisabled" [class.btn-success]="pageDisabled"
+      (click)="togglePageAccess()">
+      <i class="pi" [class.pi-lock]="!pageDisabled" [class.pi-lock-open]="pageDisabled"></i>
+      {{ pageDisabled ? 'Enable Page for Others' : 'Disable Page for Others' }}
+    </button>
+    <button class="btn-primary" (click)="openDialog()">
+      <i class="pi pi-plus"></i> New Balance
+    </button>
+  </div>
+</div>
+@if (pageDisabled && !isCeo) {
+<div class="table-card" style="text-align:center; padding:60px 20px;">
+  <i class="pi pi-lock" style="font-size:48px; color:#999;"></i>
+  <h2 style="margin-top:16px;">This page is currently unavailable</h2>
+  <p style="color:#777;">This page has been temporarily disabled by the administration.</p>
+</div>
+} @else {
+<div class="stats-row">
+  <div class="stat-card">
+    <span class="stat-label">PENDING</span>
+    <span class="stat-value">{{ pendingCount() }}</span>
+    <span class="stat-sub">Awaiting approval</span>
+  </div>
+  <div class="stat-card approved">
+    <span class="stat-label">APPROVED</span>
+    <span class="stat-value">{{ approvedCount() }}</span>
+    <span class="stat-sub">Confirmed adjustments</span>
+  </div>
+  <div class="stat-card rejected">
+    <span class="stat-label">REJECTED</span>
+    <span class="stat-value">{{ rejectedCount() }}</span>
+    <span class="stat-sub">Denied adjustments</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">TOTAL</span>
+    <span class="stat-value">{{ totalCount() }}</span>
+    <span class="stat-sub">All balance records</span>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="table-header">
+    <h2>Balance Initializations</h2>
+    <input type="text" placeholder="Search..." class="search-input" (input)="onSearch($any($event.target).value)" />
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Semi-Finished Item</th>
+        <th>Balance Date</th>
+        <th>Created By</th>
+        <th>Existing Stock</th>
+        <th>Adjusted Stock</th>
+        <th>Gap</th>
+        <th>Status</th>
+        <th>Approved At</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of filteredBalances()">
+        <td>{{ row.semiFinishedName }}</td>
+        <td>{{ row.balanceDate | date: 'M/d/yyyy' }}</td>
+        <td>{{ row.createdByName }}</td>
+        <td>{{ row.existingStock }}</td>
+        <td>{{ row.adjustedStock }}</td>
+        <td [class]="gapClass(row.gap)">{{ row.gap }}</td>
+        <td>
+          <span class="status-badge" [class]="row.status.toLowerCase()">
+            {{ row.status | uppercase }}
+          </span>
+        </td>
+        <td>{{ row.approvedAt ? (row.approvedAt | date: 'M/d/yyyy') : '—' }}</td>
+        <td>
+          @if (row.status === 'Pending' && canApproveReject()) {
+          <button class="btn-icon approve" (click)="approve(row)" title="Approve">
+            <i class="pi pi-check"></i>
+          </button>
+          <button class="btn-icon reject" (click)="reject(row)" title="Reject">
+            <i class="pi pi-times"></i>
+          </button>
+          }
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+}
+@if (showDialog()) {
+<div class="modal-overlay" (click)="closeDialog()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3><i class="pi pi-plus-circle"></i> New Balance Initialization</h3>
+      <button class="btn-close" (click)="closeDialog()">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-row">
+        <div class="form-group">
+          <label>SEMI-FINISHED ITEM</label>
+          <div class="custom-dropdown">
+            <div class="dropdown-trigger" (click)="toggleProductDropdown()">
+              <span [class.placeholder]="!selectedProductName()">
+                {{ selectedProductName() ?? 'Select semi-finished item' }}
+              </span>
+              <i class="pi pi-chevron-down"></i>
+            </div>
+
+            @if (productDropdownOpen()) {
+            <div class="dropdown-panel">
+              <input type="text" placeholder="Search items..." class="dropdown-search" [value]="productSearchTerm()"
+                (input)="onProductSearch($any($event.target).value)" (click)="$event.stopPropagation()" />
+              <ul class="dropdown-list">
+                <li class="dropdown-item muted" (click)="selectProduct(null)">
+                  -- Select Item --
+                </li>
+                @for (item of filteredProducts(); track item.id) {
+                <li class="dropdown-item" [class.selected]="form.get('semiFinishedId')?.value === item.id"
+                  (click)="selectProduct(item.id)">
+                  {{ item.name }}
+                </li>
+                }
+                @if (filteredProducts().length === 0) {
+                <li class="dropdown-item muted">No matches found</li>
+                }
+              </ul>
+            </div>
+            }
+          </div>
+        </div>
+        <div class="form-group">
+          <label>BALANCE DATE</label>
+          <input type="date" formControlName="balanceDate" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>ADJUSTED STOCK</label>
+          <input type="number" formControlName="adjustedStock" min="0" />
+        </div>
+        <div class="form-group">
+          <label>NOTES (OPTIONAL)</label>
+          <input type="text" formControlName="notes" />
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="closeDialog()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="form.invalid">
+          Create Balance
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+}

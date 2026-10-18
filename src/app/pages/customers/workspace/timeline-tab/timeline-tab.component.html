@@ -1,0 +1,119 @@
+    <header class="head">
+      <div>
+        <h3 class="title">
+          Timeline
+          @if (!loading() && events().length) {
+            <span class="count">{{ events().length }}</span>
+          }
+        </h3>
+        <p class="sub">Every stage change, activity and milestone for this account.</p>
+      </div>
+      @if (canManage() && events().length) {
+        <button type="button" class="ui-btn ui-btn--primary" (click)="addActivity.emit()">
+          <i class="pi pi-plus" aria-hidden="true"></i> Add activity
+        </button>
+      }
+    </header>
+
+    @if (loading()) {
+      <div class="skeletons" aria-busy="true">
+        @for (n of skeletons; track n) {
+          <div class="skeleton"></div>
+        }
+      </div>
+    } @else if (!events().length) {
+      <app-empty-state
+        icon="pi-history"
+        title="No timeline events yet"
+        message="Stage changes, activities and contacts will show up here."
+      >
+        @if (canManage()) {
+          <button type="button" class="ui-btn ui-btn--primary" (click)="addActivity.emit()">
+            Add first activity
+          </button>
+        }
+      </app-empty-state>
+    } @else {
+      <div class="insights">
+        @for (item of insights(); track item.label) {
+          <div class="insight" [class.stale]="item.stale">
+            <span class="insight-label">{{ item.label }}</span>
+            <strong class="insight-value">{{ item.value }}</strong>
+            <span class="insight-caption">{{ item.caption }}</span>
+          </div>
+        }
+      </div>
+
+      @if (chips().length > 2) {
+        <div class="chips" role="group" aria-label="Filter events">
+          @for (chip of chips(); track chip.id) {
+            <button
+              type="button"
+              class="chip"
+              [class.on]="activeFilter() === chip.id"
+              [attr.aria-pressed]="activeFilter() === chip.id"
+              (click)="filter.set(chip.id)"
+            >
+              {{ chip.label }} <span class="chip-count">{{ chip.count }}</span>
+            </button>
+          }
+        </div>
+      }
+
+      @for (day of days(); track day.key) {
+        <section class="day">
+          <h4 class="day-label">{{ day.label }}</h4>
+          <ol class="events">
+            @for (row of day.rows; track row.key) {
+              <li
+                class="event"
+                [class.milestone]="row.milestone"
+                [style.--tone-fg]="'var(--ui-' + row.tone + '-fg)'"
+                [style.--tone-bg]="'var(--ui-' + row.tone + '-bg)'"
+                [style.--tone-line]="'var(--ui-' + row.tone + '-line)'"
+              >
+                <span class="rail">
+                  <span class="node"><i [class]="'pi ' + row.icon" aria-hidden="true"></i></span>
+                </span>
+                <div class="card">
+                  <div class="top">
+                    <app-badge [tone]="row.tone" size="sm">{{ row.badge }}</app-badge>
+                    @if (row.time) {
+                      <time [attr.datetime]="row.event.occurredAt">{{ row.time }}</time>
+                    }
+                  </div>
+                  <h5 class="event-title">{{ row.event.title }}</h5>
+
+                  @if (row.from && row.to) {
+                    <p class="transition">
+                      <app-badge [tone]="row.from.tone" size="sm">{{ row.from.label }}</app-badge>
+                      <i class="pi pi-arrow-right" aria-hidden="true"></i>
+                      <app-badge [tone]="row.to.tone" size="sm">{{ row.to.label }}</app-badge>
+                    </p>
+                  }
+
+                  @if (row.event.description) {
+                    <p class="desc" [class.clamp]="row.longDescription && !expanded().has(row.key)">
+                      {{ row.event.description }}
+                    </p>
+                    @if (row.longDescription) {
+                      <button type="button" class="more" (click)="toggle(row.key)">
+                        {{ expanded().has(row.key) ? 'Show less' : 'Show more' }}
+                      </button>
+                    }
+                  }
+
+                  @if (row.event.actorName) {
+                    <span class="actor">
+                      <span class="actor-avatar" aria-hidden="true">{{ row.actorInitials }}</span>
+                      {{ row.event.actorName }}
+                    </span>
+                  }
+                </div>
+              </li>
+            }
+          </ol>
+        </section>
+      }
+    }
+  

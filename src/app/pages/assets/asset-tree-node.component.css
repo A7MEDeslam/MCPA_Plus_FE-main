@@ -1,0 +1,120 @@
+.tree-node-wrapper {
+  margin-bottom: 8px;
+}
+
+.node-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  border-left: 3px solid #007bff;
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: #666;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.expand-btn.expanded {
+  transform: rotate(90deg);
+}
+
+.expand-btn-placeholder {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.node-info {
+  flex: 1;
+}
+
+.node-title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.node-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.node-code {
+  font-family: 'Courier New', monospace;
+  color: #d63384;
+  font-size: 12px;
+}
+
+.node-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.badge-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.badge-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.badge-success {
+  background-color: #28a745;
+  color: white;
+}
+
+.badge-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.children {
+  margin-left: 12px;
+  margin-top: 4px;
+  padding-left: 12px;
+  border-left: 1px dashed #ddd;
+}
+
+.child-item {
+  margin: 8px 0;
+}
+
+@media (max-width: 768px) {
+  .node-title {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .node-code {
+    display: block;
+    margin-top: 2px;
+  }
+}

@@ -1,0 +1,161 @@
+:host {
+  display: block;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+}
+
+/* ===========================
+   Header
+=========================== */
+
+thead {
+  background: #1e3a5f;
+}
+
+thead th {
+  color: #000000;
+  padding: 16px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ===========================
+   Body
+=========================== */
+
+tbody td {
+  padding: 15px 16px;
+  border-bottom: 1px solid #eef2f7;
+  color: #334155;
+  font-size: 14px;
+}
+
+tbody tr {
+  transition: background .2s;
+}
+
+tbody tr:hover {
+  background: #f8fafc;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ===========================
+   Status Badges
+=========================== */
+
+span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* min-width: 90px; */
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.posted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.approved {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.draft {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.reversed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ===========================
+   Action Button
+=========================== */
+
+button {
+
+  border: none;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  cursor: pointer;
+  transition: .2s;
+}
+
+button:hover {
+  background: #2563eb;
+  color: #fff;
+}
+
+button i {
+  font-size: 15px;
+}
+
+/* ===========================
+   Alignment
+=========================== */
+
+td:nth-child(5),
+th:nth-child(5) {
+}
+
+td:last-child,
+th:last-child {
+  /* width: 20px; */
+  text-align: center;
+}
+
+/* ===========================
+   Responsive
+=========================== */
+
+@media (max-width: 992px) {
+
+  table {
+    display: block;
+    /* overflow-x: auto; */
+    white-space: nowrap;
+  }
+
+}
+.cancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.actions{
+  display: flex;
+
+  gap: 6px;
+}
+.actions button{
+  
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  cursor: pointer;
+  transition: .2s;
+  padding: 10px;
+}

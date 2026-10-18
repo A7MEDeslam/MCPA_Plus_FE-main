@@ -1,0 +1,146 @@
+<div class="audit-page">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-history"></i> Audit Logs</h1>
+      <p>Track every create, update and delete across the system</p>
+    </div>
+    <button class="btn btn-primary" (click)="load()" [disabled]="loading()">
+      <i class="pi pi-refresh"></i> Refresh
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="audit-filters">
+        <div class="search-input-wrapper">
+          <i class="pi pi-search search-icon"></i>
+          <input class="form-control" type="text" placeholder="Search user, entity, endpoint, IP..."
+            [ngModel]="search()" (ngModelChange)="search.set($event); onFilterChange()" />
+        </div>
+
+        <select class="form-control" [ngModel]="actionFilter()"
+          (ngModelChange)="actionFilter.set($event); onFilterChange()">
+          <option value="">All actions</option>
+          <option>Create</option>
+          <option>Update</option>
+          <option>Delete</option>
+        </select>
+
+        <select class="form-control" [ngModel]="entityFilter()"
+          (ngModelChange)="entityFilter.set($event); onFilterChange()">
+          <option value="">All entities</option>
+          <option *ngFor="let e of entities()" [value]="e">{{ e }}</option>
+        </select>
+
+        <select class="form-control" [ngModel]="userFilter()"
+          (ngModelChange)="userFilter.set($event); onFilterChange()">
+          <option value="">All users</option>
+          <option *ngFor="let u of users()" [value]="u">{{ u }}</option>
+        </select>
+
+        <input class="form-control" type="date" [ngModel]="dateFrom()"
+          (ngModelChange)="dateFrom.set($event); onFilterChange()" />
+        <input class="form-control" type="date" [ngModel]="dateTo()"
+          (ngModelChange)="dateTo.set($event); onFilterChange()" />
+
+        <button class="btn btn-ghost" (click)="clearFilters()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-error" *ngIf="error()">{{ error() }}</div>
+
+  <div class="card" *ngIf="!error()">
+    <div class="empty" *ngIf="loading()">Loading...</div>
+
+    <div class="audit-table-wrap" *ngIf="!loading()">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>User</th>
+            <th>Action</th>
+            <th>Entity</th>
+            <th>Entity ID</th>
+            <th>Endpoint</th>
+            <th>IP</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let l of paged()" class="audit-row" (click)="openDetails(l)">
+            <td>{{ l.id }}</td>
+            <td>{{ l.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+            <td>{{ l.userName }}</td>
+            <td><span class="badge" [ngClass]="actionClass(l.action)">{{ l.action }}</span></td>
+            <td>{{ l.entityName }}</td>
+            <td class="mono ellipsis" [title]="l.entityId">{{ l.entityId }}</td>
+            <td>
+              <span class="method" [ngClass]="methodClass(l.httpMethod)">{{ l.httpMethod }}</span>
+              <span class="mono">{{ l.endpoint }}</span>
+            </td>
+            <td class="mono">{{ l.ipAddress }}</td>
+            <td><i class="pi pi-eye"></i></td>
+          </tr>
+          <tr *ngIf="paged().length === 0">
+            <td colspan="9" class="empty">No logs found.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="audit-pager" *ngIf="!loading()">
+      <span class="text-muted">{{ filtered().length }} records</span>
+      <div class="flex-gap">
+        <button class="btn btn-ghost btn-sm" (click)="prev()" [disabled]="page() === 1">Prev</button>
+        <span class="text-muted">Page {{ page() }} / {{ totalPages() }}</span>
+        <button class="btn btn-ghost btn-sm" (click)="next()" [disabled]="page() === totalPages()">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details dialog -->
+<div class="modal-overlay open" *ngIf="selected() as s" (click)="closeDetails()">
+  <div class="modal" style="max-width: 820px" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3 class="modal-title">Log #{{ s.id }} — {{ s.action }} {{ s.entityName }}</h3>
+      <button class="modal-close" (click)="closeDetails()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="audit-meta">
+        <div><b>User:</b> {{ s.userName }}</div>
+        <div><b>Date:</b> {{ s.createdAt | date: 'yyyy-MM-dd HH:mm:ss' }}</div>
+        <div><b>IP:</b> {{ s.ipAddress }}</div>
+        <div><b>Request:</b> {{ s.httpMethod }} {{ s.endpoint }}</div>
+        <div class="full"><b>Entity ID:</b> <span class="mono">{{ s.entityId }}</span></div>
+        <div class="full"><b>Description:</b> {{ s.description }}</div>
+      </div>
+
+      <div class="empty" *ngIf="detailLoading()">Loading details...</div>
+
+      <table class="diff" *ngIf="diffRows().length > 0">
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Old value</th>
+            <th>New value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of diffRows()" [class.changed]="r.changed">
+            <td>{{ r.field }}</td>
+            <td class="mono">{{ show(r.oldValue) }}</td>
+            <td class="mono">{{ show(r.newValue) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="empty" *ngIf="!detailLoading() && diffRows().length === 0">
+        No old/new values were recorded for this entry.
+      </p>
+    </div>
+  </div>
+</div>

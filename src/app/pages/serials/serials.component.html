@@ -1,0 +1,130 @@
+<div class="page active" id="page-serials">
+  <div class="page-header" *ngIf="!embedded">
+    <h1><i class="pi pi-id-card" style="margin-right: 8px;"></i>Serial Number Registry</h1>
+    <p>Track every produced unit by its unique serial number</p>
+  </div>
+  <div class="card">
+    <div class="card-header flex-between">
+      <span class="card-title">All Serials</span>
+      <input class="form-control" style="width:260px" placeholder="Search serial / product..." [ngModel]="serialSearch()" (ngModelChange)="serialSearch.set($event); pagination.currentPage.set(1)"/>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th (click)="toggleSort('serial')" class="sortable">
+              Serial #
+              <i class="pi" [ngClass]="sortColumn() === 'serial' ? (sortDir() === 'asc' ? 'pi-sort-alpha-up' : 'pi-sort-alpha-down') : 'pi-sort-alt'"></i>
+            </th>
+            <th (click)="toggleSort('finishedProductName')" class="sortable">
+              Product
+              <i class="pi" [ngClass]="sortColumn() === 'finishedProductName' ? (sortDir() === 'asc' ? 'pi-sort-alpha-up' : 'pi-sort-alpha-down') : 'pi-sort-alt'"></i>
+            </th>
+            <th (click)="toggleSort('workOrderNumber')" class="sortable">
+              Work Order
+              <i class="pi" [ngClass]="sortColumn() === 'workOrderNumber' ? (sortDir() === 'asc' ? 'pi-sort-numeric-up' : 'pi-sort-numeric-down') : 'pi-sort-alt'"></i>
+            </th>
+            <th>Origin</th>
+            <th (click)="toggleSort('productionDate')" class="sortable">
+              Production Date
+              <i class="pi" [ngClass]="sortColumn() === 'productionDate' ? (sortDir() === 'asc' ? 'pi-sort-amount-up' : 'pi-sort-amount-down') : 'pi-sort-alt'"></i>
+            </th>
+            <th (click)="toggleSort('status')" class="sortable">
+              Status
+              <i class="pi" [ngClass]="sortColumn() === 'status' ? (sortDir() === 'asc' ? 'pi-sort-alpha-up' : 'pi-sort-alpha-down') : 'pi-sort-alt'"></i>
+            </th>
+            <th (click)="toggleSort('projectName')" class="sortable">
+              Project
+              <i class="pi" [ngClass]="sortColumn() === 'projectName' ? (sortDir() === 'asc' ? 'pi-sort-alpha-up' : 'pi-sort-alpha-down') : 'pi-sort-alt'"></i>
+            </th>
+            <th  *ngIf="canSeeCustomerName">Customer Name</th>
+            <th>Action By</th>
+            <th>Action At</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="serial-tbody">
+          <ng-container *ngIf="filteredSerials().length; else noSerials">
+            <tr *ngFor="let s of pagedSerials()">
+              <td><span class="serial-tag">{{s.serial}}</span></td>
+              <td>{{s.finishedProductName}}</td>
+              <td>{{s.workOrderNumber}}</td>
+              <td>{{s.originTypeName || '-'}}</td>
+              <td>{{s.productionDate | date:'mediumDate'}}</td>
+              <td><span class="badge badge-received">{{s.status}}</span></td>
+              <td>{{s.projectName || '-'}}</td>
+              <td  *ngIf="canSeeCustomerName">{{s.customerName || '-'}}</td>
+              <td>{{s.actionByName || '-'}}</td>
+              <td>{{s.actionAt ? (s.actionAt | date:'short') : '-'}}</td>
+              <td>
+                <button class="btn btn-xs btn-primary" *ngIf="(s.status === 'InStock' || s.status === 'In Stock') && canAssign" (click)="openAssignModal(s.id)">Assign Project</button>
+              </td>
+            </tr>
+          </ng-container>
+          <ng-template #noSerials>
+            <tr><td  [attr.colspan]="tableColspan" class="empty">No serials yet - complete a production order first</td></tr>
+          </ng-template>
+        </tbody>
+      </table>
+    </div>
+    <app-pagination
+      [totalItems]="filteredSerials().length"
+      [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()"
+      (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+</div>
+
+<ng-container *ngIf="modalOpen">
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Serial Numbers</span><button class="modal-close" (click)="closeModal()">x</button></div>
+    <div class="modal-body">
+      <p class="text-muted" style="margin-bottom:14px">{{viewingSerialsTitle}}</p>
+      <div *ngIf="serialService.isLoading()" class="serials-loading" role="status" aria-live="polite">
+        <i class="pi pi-spin pi-spinner"></i>
+        <span>Loading serials...</span>
+      </div>
+      <div class="serial-modal-grid" *ngIf="!serialService.isLoading()">
+        <div class="serial-group">
+          <div class="serial-group-heading in-stock">In Stock</div>
+          <div class="serial-grid">
+            <span class="serial-tag serial-tag-in-stock" *ngFor="let s of viewingSerialsInStock">{{s.serial}}</span>
+            <span *ngIf="viewingSerialsInStock.length === 0" class="serial-empty">No in-stock serials</span>
+          </div>
+        </div>
+        <div class="serial-group">
+          <div class="serial-group-heading sold">Out Stock</div>
+          <div class="serial-grid">
+            <span class="serial-tag serial-tag-sold" *ngFor="let s of viewingSerialsOutOfStock">{{s.serial}}</span>
+            <span *ngIf="viewingSerialsOutOfStock.length === 0" class="serial-empty">No sold/out-of-stock serials</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" (click)="closeModal()">Close</button></div>
+  </div>
+</div>
+</ng-container>
+
+<ng-container *ngIf="assignModalOpen">
+<div class="modal-overlay open" (click)="closeAssignModalIfOverlay($event)">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Assign Serial to Project</span><button class="modal-close" (click)="assignModalOpen = false">x</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Select Project</label>
+        <select class="form-control" [(ngModel)]="selectedProjectId">
+          <option [ngValue]="null">-- Select Project --</option>
+          <option *ngFor="let p of projectService.Projects()" [ngValue]="p.id">{{p.name}}</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="assignModalOpen = false">Cancel</button>
+      <button class="btn btn-primary" (click)="assignToProject()">Assign</button>
+    </div>
+  </div>
+</div>
+</ng-container>

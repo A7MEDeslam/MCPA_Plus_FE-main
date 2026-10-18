@@ -1,0 +1,191 @@
+<div class="mobile-nav-backdrop" *ngIf="mobileNav.open()" (click)="mobileNav.close()"></div>
+<aside class="sidebar-shell" [class.collapsed]="collapsed" [class.mobile-open]="mobileNav.open()">
+  <div class="sidebar-brand">
+    <span class="sidebar-brand-mark">M</span>
+    <span class="sidebar-brand-copy">
+      <strong>MicroMCPA</strong>
+      <small>Operations workspace</small>
+    </span>
+    <button type="button" class="sidebar-collapse" (click)="collapsed = !collapsed; mobileNav.close()"
+      [attr.aria-label]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      [attr.title]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+      <i class="pi" [class.pi-angle-double-right]="collapsed" [class.pi-angle-double-left]="!collapsed"></i>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav" aria-label="Main navigation" (click)="onNavigationClick($event)">
+    <div class="nav-group-label">Overview</div>
+    <a class="nav-item" routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <i class="nav-icon pi pi-th-large"></i><span>Dashboard</span>
+    </a>
+
+    <div class="nav-group-label my-work-label">My Work</div>
+    <ng-container *ngIf="canSeeTasks">
+      <button type="button" class="nav-section-button" [class.open]="isSectionOpen('tasks')"
+        [attr.data-section]="'tasks'" (click)="toggleSection('tasks')">
+        <span class="section-title"><i class="section-icon pi pi-list-check"></i><span>Tasks</span></span>
+        <span class="task-badge" *ngIf="pendingTasksCount > 0">{{ pendingTasksCount > 99 ? '99+' : pendingTasksCount }}</span>
+        <i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('tasks')"></i>
+      </button>
+      <div class="nav-submenu" *ngIf="isSectionOpen('tasks')">
+        <a class="nav-item" routerLink="/pending-approvals" routerLinkActive="active">
+          <span>Pending Approvals</span><span class="task-badge" *ngIf="pendingTasksCount > 0">{{ pendingTasksCount > 99 ? '99+' : pendingTasksCount }}</span>
+        </a>
+        <a class="nav-item" routerLink="/approval-history" routerLinkActive="active">
+          <span>Approval History</span>
+        </a>
+      </div>
+    </ng-container>
+
+    <div class="nav-group-label">Modules</div>
+
+    <ng-container *ngIf="canSeeCustomers">
+      <button type="button" class="nav-section-button" [class.open]="isSectionOpen('sales')"
+        [attr.data-section]="'sales'" (click)="toggleSection('sales')">
+        <span class="section-title"><i class="section-icon pi pi-briefcase"></i><span>Commercial</span></span>
+        <i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('sales')"></i>
+      </button>
+      <div class="nav-submenu" *ngIf="isSectionOpen('sales')">
+        <a class="nav-item" routerLink="/customers" routerLinkActive="active"><span>Sales &amp; Contracts</span></a>
+        <!-- <a *ngIf="canSeeProjects" class="nav-item" routerLink="/projects" routerLinkActive="active"><span>Projects</span></a>
+        <a *ngIf="canSeeSalesActivities" class="nav-item" routerLink="/sales-activities" routerLinkActive="active"><span>Sales Activities</span></a> -->
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="canSeeAccounting">
+      <button type="button" class="nav-section-button" [class.open]="isSectionOpen('accounting')"
+        [attr.data-section]="'accounting'" (click)="toggleSection('accounting')">
+        <span class="section-title"><i class="section-icon pi pi-building-columns"></i><span>Accounting</span></span>
+        <i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('accounting')"></i>
+      </button>
+      <div class="nav-submenu" *ngIf="isSectionOpen('accounting')">
+        <a *ngIf="canSeeBankAccounts" class="nav-item" routerLink="/bank-accounts" routerLinkActive="active"><span>Chart
+            of Accounts</span></a>
+        <a *ngIf="canSeeJournalEntries" class="nav-item" routerLink="/journal-entries"
+          routerLinkActive="active"><span>Journal Entries</span></a>
+        <a *ngIf="canSeeCheckRequests" class="nav-item" routerLink="/check-requests"
+          routerLinkActive="active"><span>Check Requests</span></a>
+        <a *ngIf="canSeeExpenses" class="nav-item" routerLink="/expenses"
+          routerLinkActive="active"><span>Expenses</span></a>
+
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="canSeeProduction || canSeeMasterData">
+      <button type="button" class="nav-section-button" [class.open]="isSectionOpen('technical')"
+        [attr.data-section]="'technical'" (click)="toggleSection('technical')">
+        <span class="section-title"><i class="section-icon pi pi-cog"></i><span>Technical</span></span>
+        <i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('technical')"></i>
+      </button>
+      <div class="nav-submenu" *ngIf="isSectionOpen('technical')">
+        <a *ngIf="canSeeSemiFinished" class="nav-item" routerLink="/semi-finished"
+          routerLinkActive="active"><span>Semi-Finished Products</span></a>
+        <a *ngIf="canSeeFinishedProducts" class="nav-item" routerLink="/products"
+          routerLinkActive="active"><span>Finished Products</span></a>
+        <a *ngIf="canSeeProductionOrders" class="nav-item" routerLink="/prodorders" routerLinkActive="active"><span>Work
+            Orders</span></a>
+        <a *ngIf="canSeeBomConsume" class="nav-item" routerLink="/consume" routerLinkActive="active"><span>Production
+            BOM</span></a>
+        <a *ngIf="canSeeRawMaterials" class="nav-item" routerLink="/materials" routerLinkActive="active"><span>Raw
+            Materials</span></a>
+        <button type="button" class="nav-nested-button" *ngIf="canSeeReturnedSemiFinished || canSeeReturnWH"
+          [class.open]="isSectionOpen('technicalReturns')" [attr.data-section]="'technicalReturns'"
+          (click)="toggleSection('technicalReturns')">
+          <span>Returns</span><i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('technicalReturns')"></i>
+        </button>
+        <div class="nav-nested-submenu" *ngIf="isSectionOpen('technicalReturns')">
+          <a *ngIf="canSeeReturnedSemiFinished" class="nav-item" routerLink="/returns-operations" routerLinkActive="active"><span>Returns Operations</span></a>
+          <a *ngIf="canSeeReturnWH" class="nav-item" routerLink="/work-center" routerLinkActive="active"><span>All Returns</span></a>
+        </div>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="canSeeInventory || canSeeProcurement || canSeeSuppliers || canSeeGeneralInventory">
+      <button type="button" class="nav-section-button" [class.open]="isSectionOpen('warehouses')"
+        [attr.data-section]="'warehouses'" (click)="toggleSection('warehouses')">
+        <span class="section-title"><i class="section-icon pi pi-warehouse"></i><span>Warehouses &amp; Purchase
+            Orders</span></span>
+        <i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('warehouses')"></i>
+      </button>
+      <div class="nav-submenu" *ngIf="isSectionOpen('warehouses')">
+        <button type="button" class="nav-nested-button" *ngIf="canSeeSuppliers || canSeeProcurement"
+          [class.open]="isSectionOpen('procurement')" [attr.data-section]="'procurement'"
+          (click)="toggleSection('procurement')">
+          <span>Procurement</span><i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('procurement')"></i>
+        </button>
+        <div class="nav-nested-submenu" *ngIf="isSectionOpen('procurement')">
+          <a *ngIf="canSeeSuppliers" class="nav-item" routerLink="/suppliers" routerLinkActive="active"><span>Suppliers</span></a>
+          <a *ngIf="canSeePurchaseOrders" class="nav-item" routerLink="/po" routerLinkActive="active"><span>Purchase Orders</span></a>
+          <a *ngIf="canSeeGoodsReceipt" class="nav-item" routerLink="/receive" routerLinkActive="active"><span>Goods Receipts</span></a>
+        </div>
+
+        <button type="button" class="nav-nested-button" *ngIf="canSeeInventory || canSeeGeneralInventory"
+          [class.open]="isSectionOpen('inventory')" [attr.data-section]="'inventory'"
+          (click)="toggleSection('inventory')">
+          <span>Inventory</span><i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('inventory')"></i>
+        </button>
+        <div class="nav-nested-submenu" *ngIf="isSectionOpen('inventory')">
+          <a *ngIf="canSeeGeneralInventory" class="nav-item" routerLink="/stock" routerLinkActive="active"><span>Stock</span></a>
+          <a *ngIf="canSeeRawWH" class="nav-item" routerLink="/rawwh" routerLinkActive="active"><span>Raw Material Warehouse</span></a>
+          <a *ngIf="canSeeFgWH" class="nav-item" routerLink="/fgwh" routerLinkActive="active"><span>Finished Goods Warehouse &amp; Serial Registry</span></a>
+          <!-- <a *ngIf="canSeeThirdWH" class="nav-item" routerLink="/thirdwh" routerLinkActive="active"><span>Third-Party Warehouse</span></a> -->
+          <!-- Mobile and Spare Parts Warehouses are temporarily hidden from navigation. -->
+          <a *ngIf="canSeeWarehouseDelivery" class="nav-item" routerLink="/warehouse-delivery" routerLinkActive="active"><span>Delivery Requests</span></a>
+          <a *ngIf="canSeeDeliveryHistory" class="nav-item" routerLink="/delivery-history" routerLinkActive="active"><span>Serial History</span></a>
+          <button type="button" class="nav-nested-button" *ngIf="canSeeReturnedSemiFinished || canSeeReturnWH"
+            [class.open]="isSectionOpen('inventoryReturns')" [attr.data-section]="'inventoryReturns'"
+            (click)="toggleSection('inventoryReturns')">
+            <span>Returns</span><i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('inventoryReturns')"></i>
+          </button>
+          <div class="nav-nested-submenu" *ngIf="isSectionOpen('inventoryReturns')">
+            <a *ngIf="canSeeReturnedSemiFinished" class="nav-item" routerLink="/returns-operations" routerLinkActive="active"><span>Returns Operations</span></a>
+            <a *ngIf="canSeeReturnWH" class="nav-item" routerLink="/work-center" routerLinkActive="active"><span>All Returns</span></a>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <div class="nav-group-label support-label">Business Support</div>
+    <button type="button" class="nav-section-button pending-module" disabled aria-disabled="true">
+      <span class="section-title"><i class="section-icon pi pi-users"></i><span>Human Resources</span></span>
+      <span class="pending-badge">Pending</span>
+    </button>
+
+    <ng-container *ngIf="canSeeReports">
+      <button type="button" class="nav-section-button" [class.open]="isSectionOpen('reports')"
+        [attr.data-section]="'reports'" (click)="toggleSection('reports')">
+        <span class="section-title"><i class="section-icon pi pi-chart-line"></i><span>Reports</span></span>
+        <i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('reports')"></i>
+      </button>
+      <div class="nav-submenu" *ngIf="isSectionOpen('reports')">
+        <a *ngIf="canSeeAccountStatement" class="nav-item" routerLink="/account-statement"
+          routerLinkActive="active"><span>Account Statement</span></a>
+        <a *ngIf="canSeeChecksReport" class="nav-item" routerLink="/checks-report"
+          routerLinkActive="active"><span>Checks
+            Report</span></a>
+        <a *ngIf="canSeeExpenses" class="nav-item" routerLink="/expenses-dashboard"
+          routerLinkActive="active"><span>Expenses Dashboard</span></a>
+        <a *ngIf="canSeeGoodsReceiptsReport" class="nav-item" routerLink="/goods-receipts-report"
+          routerLinkActive="active"><span>Goods Receipts Report</span></a>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="canSeeUserManagement">
+      <button type="button" class="nav-section-button" [class.open]="isSectionOpen('admin')"
+        [attr.data-section]="'admin'" (click)="toggleSection('admin')">
+        <span class="section-title"><i class="section-icon pi pi-shield"></i><span>Administration</span></span>
+        <i class="dropdown-arrow pi pi-chevron-down" [class.rotated]="isSectionOpen('admin')"></i>
+      </button>
+      <div class="nav-submenu" *ngIf="isSectionOpen('admin')">
+        <a class="nav-item" routerLink="/user-management" routerLinkActive="active"><span>Access Management</span></a>
+        <a *ngIf="canSeeAuditLogs" class="nav-item" routerLink="/audit-logs" routerLinkActive="active"><span>Audit
+            Logs</span></a>
+      </div>
+    </ng-container>
+  </nav>
+
+  <div class="sidebar-user">
+    <span class="sidebar-avatar">{{ userInitial }}</span>
+    <span class="sidebar-user-copy"><strong>{{ username }}</strong><small>{{ userRole }}</small></span>
+  </div>
+</aside>

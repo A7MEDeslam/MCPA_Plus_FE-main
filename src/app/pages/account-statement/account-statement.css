@@ -1,0 +1,154 @@
+
+
+.card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.card-body {
+  padding: 18px;
+}
+
+.account-picker-list {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fafafa;
+}
+
+.account-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.account-picker-item:hover {
+  background: #eef2ff;
+}
+
+.results-section {
+  margin-top: 24px;
+}
+
+.results-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.summary-cards.compact {
+  display: flex;
+  gap: 12px;
+}
+
+.statement-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.15s ease;
+}
+
+.statement-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.statement-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fafbfc 0%, #f3f4f6 100%);
+}
+
+.statement-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.acc-code-pill {
+  background: #1f2937;
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.acc-name-text {
+  color: #374151;
+}
+
+.statement-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.meta-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-left: 2px solid #e5e7eb;
+}
+
+.meta-pill.negative .meta-value {
+  color: #dc2626;
+}
+
+.meta-label {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.meta-value {
+  font-weight: 700;
+  color: #111827;
+}
+
+.accounts-table td.num,
+.accounts-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.btn-small {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-small:hover {
+  background: #f3f4f6;
+}

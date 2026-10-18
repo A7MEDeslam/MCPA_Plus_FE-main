@@ -1,0 +1,291 @@
+<!-- src/app/pages/semi-finished-products/semi-finished-products.html -->
+<div class="unfinished-page">
+  <div class="page-header">
+    <div>
+      <h1><i class="pi pi-box"></i> Semi-Finished Products</h1>
+      <p class="subtitle">Manage semi-finished SKUs, production, and project assignments</p>
+    </div>
+    <button class="btn-primary" (click)="openCreateModal()">
+      <i class="pi pi-plus"></i> New Semi-Finished Product
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <i class="pi pi-box stat-icon"></i>
+      <div><div class="stat-value">{{ totalItems }}</div><div class="stat-label">Total Products</div></div>
+    </div>
+    <div class="stat-card stat-ok">
+      <i class="pi pi-check-circle stat-icon"></i>
+      <div><div class="stat-value">{{ inStockCount }}</div><div class="stat-label">In Stock</div></div>
+    </div>
+    <div class="stat-card stat-bad">
+      <i class="pi pi-exclamation-circle stat-icon"></i>
+      <div><div class="stat-value">{{ outOfStockCount }}</div><div class="stat-label">Out of Stock</div></div>
+    </div>
+    <div class="stat-card stat-info">
+      <i class="pi pi-database stat-icon"></i>
+      <div><div class="stat-value">{{ totalStockUnits }}</div><div class="stat-label">Total Units</div></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab" [class.active]="activeTab === 'products'" (click)="switchTab('products')">
+      Registered Products
+    </button>
+    <button class="tab" [class.active]="activeTab === 'assignments'" (click)="switchTab('assignments')">
+      Assignments
+    </button>
+  </div>
+
+  <!-- PRODUCTS TAB -->
+  <div class="card" *ngIf="activeTab === 'products'">
+    <div class="card-header">
+      <h2>Registered Semi-Finished Products</h2>
+      <div class="search-box">
+        <i class="pi pi-search"></i>
+        <input type="text" placeholder="Search by code, name, model..." [(ngModel)]="searchTerm"
+          [ngModelOptions]="{ standalone: true }" />
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>CODE</th>
+            <th>PRODUCT</th>
+            <th>STOCK</th>
+            <th>TOTAL PRODUCED</th>
+            <th>LAST PRODUCTION</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of filteredItems">
+            <td class="code-cell">{{ item.code }}</td>
+            <td>
+              <div class="product-cell">
+                <span class="avatar">{{ (item.name || '?').charAt(0).toUpperCase() }}</span>
+                <div>
+                  <div class="product-name">{{ item.name }}</div>
+                  <div class="product-model">{{ item.modelType || 'No model type' }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="stock-badge" [class.stock-out]="!(item.currentStock > 0)">{{ item.currentStock }}</span>
+            </td>
+            <td>{{ item.totalProduced }}</td>
+            <td>{{ formatDate(item.lastProductionDate) }}</td>
+            <td class="actions-cell">
+              <button class="icon-btn" title="Produce" (click)="openProduceModal(item)">
+                <i class="pi pi-cog"></i>
+              </button>
+              <button class="icon-btn" title="Assign to project" (click)="openAssignModal(item)">
+                <i class="pi pi-send"></i>
+              </button>
+              <button class="icon-btn" title="Edit" (click)="openEditModal(item)">
+                <i class="pi pi-pencil"></i>
+              </button>
+              <button class="icon-btn danger" title="Delete" (click)="openDeleteConfirm(item)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="!loading && filteredItems.length === 0">
+            <td colspan="6" class="empty-row">No semi-finished products found.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ASSIGNMENTS TAB -->
+  <div class="card" *ngIf="activeTab === 'assignments'">
+    <div class="card-header">
+      <h2>Assignment History</h2>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>CODE</th>
+            <th>NAME</th>
+            <th>QTY</th>
+            <th>PROJECT</th>
+            <th>ENGINEER</th>
+            <th>ASSIGNED AT</th>
+            <th>ASSIGNED BY</th>
+            <th>NOTES</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of assignments">
+            <td class="code-cell">{{ a.semiFinishedCode }}</td>
+            <td>{{ a.semiFinishedName }}</td>
+            <td>{{ a.quantity }}</td>
+            <td>{{ a.projectName }}</td>
+            <td>{{ a.engineerName || '-' }}</td>
+            <td>{{ formatDate(a.assignedAt) }}</td>
+            <td>{{ a.assignedBy }}</td>
+            <td>{{ a.notes || '-' }}</td>
+          </tr>
+          <tr *ngIf="!loading && assignments.length === 0">
+            <td colspan="8" class="empty-row">No assignments recorded yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+</div>
+
+<!-- CREATE / EDIT MODAL -->
+<div class="modal-overlay" *ngIf="modalMode === 'create' || modalMode === 'edit'" (click)="closeIfOverlay($event)">
+  <div class="modal">
+    <h3>
+      <i class="pi" [ngClass]="modalMode === 'edit' ? 'pi-pencil' : 'pi-plus-circle'"></i>
+      {{ modalMode === 'edit' ? 'Edit Semi-Finished Product' : 'New Semi-Finished Product' }}
+    </h3>
+    <form [formGroup]="productForm" (ngSubmit)="saveProduct()" novalidate>
+      <label>Name <span class="req">*</span></label>
+      <input type="text" formControlName="name" list="finished-products-list" maxlength="100"
+        placeholder="Write or select a finished product" autocomplete="off"
+        [class.invalid]="err('product', 'name')" (input)="sanitize($event, 'product', 'name', 'letters')" />
+      <datalist id="finished-products-list">
+        <option *ngFor="let name of finishedProductNames" [value]="name"></option>
+      </datalist>
+      <div class="field-meta">
+        <small class="error-msg">{{ err('product', 'name') }}</small>
+        <small class="counter">{{ len('product', 'name') }}/100</small>
+      </div>
+
+      <label>Model Type <span class="req">*</span></label>
+      <input type="text" formControlName="modelType" maxlength="50" placeholder="e.g. GenieAgro6600"
+        [class.invalid]="err('product', 'modelType')" (input)="sanitize($event, 'product', 'modelType', 'alnum')" />
+      <div class="field-meta">
+        <small class="error-msg">{{ err('product', 'modelType') }}</small>
+        <small class="counter">{{ len('product', 'modelType') }}/50</small>
+      </div>
+
+      <label>Current Stock <span class="req">*</span></label>
+      <input type="text" inputmode="numeric" formControlName="currentStock" maxlength="9" placeholder="0"
+        [class.invalid]="err('product', 'currentStock')" (keydown)="blockNonDigitKeys($event)"
+        (input)="sanitize($event, 'product', 'currentStock', 'digits')" />
+      <div class="field-meta">
+        <small class="error-msg">{{ err('product', 'currentStock') }}</small>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" [disabled]="saving" (click)="closeModal()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="productForm.invalid || saving">
+          {{ saving ? 'Saving...' : 'Save' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- PRODUCE MODAL -->
+<div class="modal-overlay" *ngIf="modalMode === 'produce'" (click)="closeIfOverlay($event)">
+  <div class="modal">
+    <h3><i class="pi pi-cog"></i> Produce: {{ selectedItem?.name }}</h3>
+    <form [formGroup]="produceForm" (ngSubmit)="submitProduce()" novalidate>
+      <label>Quantity Produced <span class="req">*</span></label>
+      <input type="text" inputmode="numeric" formControlName="quantity" maxlength="9" placeholder="1"
+        [class.invalid]="err('produce', 'quantity')" (keydown)="blockNonDigitKeys($event)"
+        (input)="sanitize($event, 'produce', 'quantity', 'digits')" />
+      <div class="field-meta">
+        <small class="error-msg">{{ err('produce', 'quantity') }}</small>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" [disabled]="saving" (click)="closeModal()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="produceForm.invalid || saving">
+          {{ saving ? 'Saving...' : 'Confirm' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ASSIGN MODAL -->
+<div class="modal-overlay" *ngIf="modalMode === 'assign'" (click)="closeIfOverlay($event)">
+  <div class="modal">
+    <h3><i class="pi pi-send"></i> Assign: {{ selectedItem?.name }}</h3>
+    <div class="available-hint">
+      <i class="pi pi-info-circle"></i> Available in stock: <b>{{ selectedItem?.currentStock }}</b>
+    </div>
+    <form [formGroup]="assignForm" (ngSubmit)="submitAssign()" novalidate>
+      <label>Assign To</label>
+      <div class="toggle-group">
+        <button type="button" class="toggle-btn" [class.active]="assignForm.value.assignTarget === 'project'"
+          (click)="setAssignTarget('project')">
+          Project
+        </button>
+        <button type="button" class="toggle-btn" [class.active]="assignForm.value.assignTarget === 'engineer'"
+          (click)="setAssignTarget('engineer')">
+          Engineer
+        </button>
+      </div>
+
+      <ng-container *ngIf="assignForm.value.assignTarget === 'project'">
+        <label>Project <span class="req">*</span></label>
+        <select formControlName="projectId">
+          <option [ngValue]="null">-- Select --</option>
+          <option *ngFor="let p of projectService.Projects()" [ngValue]="p.id">{{ p.name }}</option>
+        </select>
+      </ng-container>
+
+      <ng-container *ngIf="assignForm.value.assignTarget === 'engineer'">
+        <label>Engineer <span class="req">*</span></label>
+        <select formControlName="engineerId">
+          <option [ngValue]="null">-- Select --</option>
+          <option *ngFor="let e of engineers" [ngValue]="e.id">{{ e.name }}</option>
+        </select>
+      </ng-container>
+
+      <label>Quantity <span class="req">*</span></label>
+      <input type="text" inputmode="numeric" formControlName="quantity" maxlength="9" placeholder="1"
+        [class.invalid]="err('assign', 'quantity')" (keydown)="blockNonDigitKeys($event)"
+        (input)="sanitize($event, 'assign', 'quantity', 'digits')" />
+      <div class="field-meta">
+        <small class="error-msg">{{ err('assign', 'quantity') }}</small>
+      </div>
+
+      <label>Notes</label>
+      <textarea formControlName="notes" rows="2" maxlength="200" placeholder="Optional"
+        [class.invalid]="err('assign', 'notes')"></textarea>
+      <div class="field-meta">
+        <small class="error-msg">{{ err('assign', 'notes') }}</small>
+        <small class="counter">{{ len('assign', 'notes') }}/200</small>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" [disabled]="saving" (click)="closeModal()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="assignForm.invalid || saving">
+          {{ saving ? 'Assigning...' : 'Assign' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" *ngIf="modalMode === 'delete'" (click)="closeIfOverlay($event)">
+  <div class="modal small">
+    <h3><i class="pi pi-exclamation-triangle"></i> Delete Product</h3>
+    <p>Are you sure you want to delete <strong>{{ selectedItem?.name }}</strong> ({{ selectedItem?.code }})?</p>
+    <p class="warning-text">This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" [disabled]="saving" (click)="closeModal()">Cancel</button>
+      <button type="button" class="btn-danger" [disabled]="saving" (click)="confirmDelete()">
+        {{ saving ? 'Deleting...' : 'Delete' }}
+      </button>
+    </div>
+  </div>
+</div>

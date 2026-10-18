@@ -1,0 +1,713 @@
+<div class="check-requests">
+  <div class="page-header">
+    <div>
+      <h1>Check Requests</h1>
+      <p class="subtitle">{{ total }} checks &middot; Approval &amp; release workflow</p>
+    </div>
+    <button class="btn-primary" (click)="openCreateModal()">
+      <i class="pi pi-plus"></i>
+      New Check Request
+    </button>
+  </div>
+
+  <div *ngIf="error" class="alert-error">{{ error }}</div>
+  <div class="filter-pills" style="margin-bottom:12px;">
+    <button [class.active]="pageTab === 'checks'" (click)="setPageTab('checks')">Check Requests</button>
+    <button [class.active]="pageTab === 'reallocations'" (click)="setPageTab('reallocations')">Reallocations</button>
+  </div>
+  <!-- Summary cards -->
+
+  <div *ngIf="pageTab === 'checks'" class="summary-cards">
+    <div class="summary-card card-blue">
+      <div class="card-label">Total Checks</div>
+      <div class="card-value">{{ total }}</div>
+      <div class="card-hint">All statuses</div>
+    </div>
+    <div class="summary-card card-amber">
+      <div class="card-label">Pending Approval</div>
+      <div class="card-value">{{ pendingCount }}</div>
+      <div class="card-hint">{{ pendingAmount | number }} EGP</div>
+    </div>
+    <div class="summary-card card-green">
+      <div class="card-label">Approved</div>
+      <div class="card-value">{{ approvedCount }}</div>
+      <div class="card-hint">Awaiting issue</div>
+    </div>
+    <div class="summary-card card-violet">
+      <div class="card-label">Issued</div>
+      <div class="card-value">{{ issuedCount }}</div>
+      <div class="card-hint">{{ issuedAmount | number }} EGP</div>
+    </div>
+  </div>
+
+
+
+  <!-- Filters + table -->
+  <div *ngIf="pageTab === 'checks'" class="table-card">
+    <div class="table-toolbar">
+      <div class="search-box">
+        <i class="pi pi-search"></i>
+        <input type="text" placeholder="Search check..." [(ngModel)]="searchTerm" />
+      </div>
+      <div class="filter-pills">
+        <button [class.active]="activeFilter === 'All'" (click)="setFilter('All')">All</button>
+        <button [class.active]="activeFilter === 'PendingApproval'" (click)="setFilter('PendingApproval')">
+          Pending Approval
+        </button>
+        <button [class.active]="activeFilter === 'Approved'" (click)="setFilter('Approved')">
+          Approved
+        </button>
+        <button [class.active]="activeFilter === 'Issued'" (click)="setFilter('Issued')">
+          Issued
+        </button>
+        <button [class.active]="activeFilter === 'Rejected'" (click)="setFilter('Rejected')">
+          Rejected
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>DOC #</th>
+            <th>CHECK #</th>
+            <th>PAYEE</th>
+            <th>AMOUNT</th>
+            <th>ISSUE DATE</th>
+            <th>DUE DATE</th>
+            <th>BANK ACCOUNT</th>
+            <th>STATUS</th>
+            <th>APPROVED BY</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let check of filteredChecks">
+            <td class="mono" data-label="Doc #">{{ check.requestNumber }}</td>
+            <td class="mono" data-label="Check #">{{ check.checkNumber || '—' }}</td>
+            <td data-label="Payee">{{ check.payeeName }}</td>
+            <td class="amount" data-label="Amount">{{ check.amount | number }}</td>
+            <td data-label="Issue Date">{{ check.issueDate | date: 'yyyy-MM-dd' }}</td>
+            <td data-label="Due Date">{{ check.dueDate | date: 'yyyy-MM-dd' }}</td>
+            <td data-label="Bank Account">{{ check.bankAccountCode }} - {{ check.bankAccountName }}</td>
+            <td data-label="Status">
+              <span class="status-badge" [ngClass]="statusClass[statusOf(check)]">
+                {{ statusLabels[statusOf(check)] }}
+              </span>
+            </td>
+            <td data-label="Approved By">{{ check.approvedByName || '—' }}</td>
+            <td class="actions">
+              <button class="icon-btn" title="View Details" (click)="viewDetails(check)">
+                <i class="pi pi-eye"></i>
+              </button>
+              <button *ngIf="canApprove && check.status === 'PendingApproval'" class="icon-btn approve" title="Approve"
+                (click)="approve(check)">
+                <i class="pi pi-check"></i>
+              </button>
+              <button *ngIf="canApprove && check.status === 'PendingApproval'" class="icon-btn reject" title="Reject"
+                (click)="reject(check)">
+                <i class="pi pi-times"></i>
+              </button>
+              <button *ngIf="canIssue && check.status === 'Approved'" class="icon-btn issue" title="Issue check"
+                (click)="openIssueModal(check)">
+                <i class="pi pi-send"></i>
+              </button>
+              <button *ngIf="check.status !== 'Rejected'&& check.status !== 'PendingApproval'" class="icon-btn"
+                title="Request Reallocation" (click)="openReallocationModal(check)">
+                <i class="pi pi-sync"></i>
+              </button>
+              <button *ngIf="canEdit(check)" class="icon-btn edit" title="Edit" (click)="openEditModal(check)">
+                <i class="pi pi-pencil"></i>
+              </button>
+
+              <button *ngIf="canDelete(check)" class="icon-btn delete" title="Delete" (click)="openDeleteModal(check)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </td>
+          </tr>
+          <!-- <tr *ngIf="!loading && filteredChecks.length === 0">
+            <td colspan="10" class="empty">No check requests match this view.</td>
+          </tr> -->
+          <!-- <tr *ngIf="loading">
+            <td colspan="10" class="empty">Loading...</td>
+          </tr> -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="table-card" *ngIf="pageTab === 'reallocations'">
+    <div *ngIf="reallocationsError" class="alert-error">{{ reallocationsError }}</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>REQUEST #</th>
+            <th>CHECK #</th>
+            <th>EXPENSES</th>
+            <th>AMOUNT</th>
+            <th>REASON</th>
+            <th>STATUS</th>
+            <th>CREATED BY</th>
+            <th>REVIEWED BY</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+      <tr *ngFor="let r of reallocations">
+        <td class="mono" data-label="Request #">{{ r.requestNumber }}</td>
+        <td class="mono" data-label="Check #">{{ r.checkRequestNumber }} ({{ r.checkNumber }})</td>
+        <td class="expenses-cell" data-label="Expenses">
+          <span class="tag" *ngFor="let e of r.expenses.slice(0,3)">{{ e.documentNumber }}</span>
+          <span class="tag tag-more" *ngIf="r.expenses.length > 3"
+            [title]="r.expenses.slice(3).map(x => x.documentNumber).join(', ')">
+            +{{ r.expenses.length - 3 }}
+          </span>
+        </td>
+        <td class="amount" data-label="Amount">{{ r.amount | number }}</td>
+        <td data-label="Reason">{{ r.reason }}</td>
+        <td data-label="Status">
+          <span class="status-badge" [ngClass]="reallocationStatusClass[r.status]">
+            {{ reallocationStatusLabels[r.status] }}
+          </span>
+        </td>
+        <td data-label="Created By">{{ r.createdByName }}</td>
+        <td data-label="Reviewed By">{{ r.reviewedByName || '—' }}</td>
+            <td class="actions">
+              <button class="icon-btn" title="View Details" (click)="viewReallocationDetails(r)">
+                <i class="pi pi-eye"></i>
+              </button>
+              <button *ngIf="canApprove && r.status === 'PendingApproval'" class="icon-btn approve" title="Approve"
+                (click)="openReviewReallocation(r, 'approve')">
+                <i class="pi pi-check"></i>
+              </button>
+              <button *ngIf="canApprove && r.status === 'PendingApproval'" class="icon-btn reject" title="Reject"
+                (click)="openReviewReallocation(r, 'reject')">
+                <i class="pi pi-times"></i>
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="!reallocationsLoading && reallocations.length === 0">
+            <td colspan="9" class="empty">No reallocation requests yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <!-- Create modal -->
+  <div class="modal-backdrop" *ngIf="showCreateModal" (click)="closeCreateModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>New Check Request</h2>
+        <button class="modal-close" (click)="closeCreateModal()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Payee Name</label>
+            <input type="text" [(ngModel)]="form.payeeName" placeholder="Full payee name" />
+          </div>
+          <div class="form-field">
+            <label>Bank Account</label>
+            <app-searchable-select [options]="bankAccountOptions" [(ngModel)]="form.bankAccountId"
+              name="createBankAccount" placeholder="Select bank account" searchPlaceholder="Search bank account..."
+              [allowEmpty]="true" emptyLabel="Select bank account"></app-searchable-select>
+          </div>
+          <div class="form-field">
+            <label>Checkbook</label>
+          <div class="inline-flex-row">
+            <div style="flex:1;">
+                <app-searchable-select [options]="checkBookOptions" [(ngModel)]="form.checkBookId"
+                  name="createCheckBook" placeholder="Select checkbook" searchPlaceholder="Search checkbook..."
+                  [allowEmpty]="true" emptyLabel="Select checkbook"></app-searchable-select>
+              </div>
+              <button type="button" class="icon-btn" title="New Checkbook" (click)="openCreateCheckBookModal()">
+                <i class="pi pi-plus"></i>
+              </button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Issue Date</label>
+            <input type="date" [(ngModel)]="form.issueDate" />
+          </div>
+
+          <div class="form-field">
+            <label>Due Date</label>
+            <input type="date" [(ngModel)]="form.dueDate" />
+          </div>
+
+          <div class="form-field span-2">
+            <label>Expense Reports</label>
+            <div class="expense-list">
+              <label class="expense-row" *ngFor="let exp of expenseReports">
+                <input type="checkbox" [checked]="isExpenseSelected(exp.id)" (change)="toggleExpenseReport(exp.id)" />
+                <span class="exp-doc">{{ exp.documentNumber }}</span>
+                <span class="exp-desc">{{ exp.description }}</span>
+                <span class="exp-amount">{{ exp.amount | number }} {{ exp.currency }}</span>
+              </label>
+              <div *ngIf="expenseReports.length === 0" class="empty-inline">
+                No approved expense reports available.
+              </div>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Amount (auto-calculated)</label>
+            <input type="text" [value]="computedAmount | number" readonly class="readonly-input" />
+          </div>
+
+          <div class="form-field span-2">
+            <label>Notes</label>
+            <textarea rows="3" [(ngModel)]="form.notes" placeholder="Describe the payment purpose..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeCreateModal()">Cancel</button>
+        <button class="btn-primary" [disabled]="!isFormValid || saving" (click)="submitCreate()">
+          {{ saving ? 'Submitting...' : 'Submit for Approval' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Issue modal -->
+  <!-- <div class="modal-backdrop" *ngIf="showIssueModal" (click)="closeIssueModal()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Issue Check</h2>
+        <button class="modal-close" (click)="closeIssueModal()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Check Number</label>
+          <input type="text" [(ngModel)]="issueCheckNumber" placeholder="e.g. #1000" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeIssueModal()">Cancel</button>
+        <button class="btn-primary" [disabled]="!issueCheckNumber.trim() || saving" (click)="submitIssue()">
+          {{ saving ? 'Issuing...' : 'Issue Check' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div> -->
+  <!-- Issue modal -->
+  <div class="modal-backdrop" *ngIf="showIssueModal" (click)="closeIssueModal()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Issue Check</h2>
+        <button class="modal-close" (click)="closeIssueModal()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Check Number</label>
+        <div class="inline-flex-row">
+          <input type="text" style="flex:1;" [(ngModel)]="issueCheckNumber" placeholder="e.g. #1000" />
+            <!-- <button type="button" class="btn-secondary" [disabled]="assigningCheckNumber" (click)="assignCheckNumber()">
+            <i class="pi" [ngClass]="assigningCheckNumber ? 'pi-spin pi-spinner' : 'pi-bolt'"></i>
+            {{ assigningCheckNumber ? 'Assigning...' : 'Assign' }}
+          </button> -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeIssueModal()">Cancel</button>
+        <button class="btn-primary" [disabled]="!issueCheckNumber.trim() || saving" (click)="submitIssue()">
+          {{ saving ? 'Issuing...' : 'Issue Check' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- Edit modal -->
+  <div class="modal-backdrop" *ngIf="showEditModal" (click)="closeEditModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Edit Check Request</h2>
+        <button class="modal-close" (click)="closeEditModal()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Payee Name</label>
+            <input type="text" [(ngModel)]="editForm.payeeName" placeholder="Full payee name" />
+          </div>
+          <div class="form-field">
+            <label>Bank Account</label>
+            <app-searchable-select [options]="editBankAccountOptions" [(ngModel)]="editForm.bankAccountId"
+              name="editBankAccount" placeholder="Select bank account" searchPlaceholder="Search bank account..."
+              [allowEmpty]="true" emptyLabel="Select bank account"></app-searchable-select>
+          </div>
+          <div class="form-field">
+            <label>Checkbook</label>
+            <div style="display:flex; gap:8px; align-items:flex-start;">
+              <div style="flex:1;">
+                <app-searchable-select [options]="editCheckBookOptions" [(ngModel)]="editForm.checkBookId"
+                  name="editCheckBook" placeholder="Select checkbook" searchPlaceholder="Search checkbook..."
+                  [allowEmpty]="true" emptyLabel="Select checkbook"></app-searchable-select>
+              </div>
+              <button type="button" class="icon-btn" title="New Checkbook" (click)="openCreateCheckBookModal()">
+                <i class="pi pi-plus"></i>
+              </button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Issue Date</label>
+            <input type="date" [(ngModel)]="editForm.issueDate" />
+          </div>
+
+          <div class="form-field">
+            <label>Due Date</label>
+            <input type="date" [(ngModel)]="editForm.dueDate" />
+          </div>
+
+          <div class="form-field span-2">
+            <label>Expense Reports</label>
+            <div class="expense-list">
+              <label class="expense-row" *ngFor="let exp of editExpenseReports">
+                <input type="checkbox" [checked]="isEditExpenseSelected(exp.id)"
+                  (change)="toggleEditExpenseReport(exp.id)" />
+                <span class="exp-doc">{{ exp.documentNumber }}</span>
+                <span class="exp-desc">{{ exp.description }}</span>
+                <span class="exp-amount">{{ exp.amount | number }} {{ exp.currency }}</span>
+              </label>
+              <div *ngIf="editExpensesLoading" class="empty-inline">
+                Loading expenses...
+              </div>
+              <div *ngIf="!editExpensesLoading && editExpenseReports.length === 0" class="empty-inline">
+                No expense reports available.
+              </div>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Amount (auto-calculated)</label>
+            <input type="text" [value]="editComputedAmount | number" readonly class="readonly-input" />
+          </div>
+
+          <div class="form-field span-2">
+            <label>Notes</label>
+            <textarea rows="3" [(ngModel)]="editForm.notes" placeholder="Describe the payment purpose..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeEditModal()">Cancel</button>
+        <button class="btn-primary" [disabled]="!isEditFormValid || saving" (click)="submitEdit()">
+          {{ saving ? 'Saving...' : 'Save Changes' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Details modal -->
+  <div class="modal-backdrop" *ngIf="showDetailsModal" (click)="closeDetails()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Check {{ detailsCheck?.requestNumber }} — Expenses</h2>
+        <button class="modal-close" (click)="closeDetails()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="modal-body" #printSection>
+        <div *ngIf="detailsError" class="alert-error">{{ detailsError }}</div>
+
+        <ng-container *ngIf="!detailsLoading">
+          <div class="print-header" style="margin-bottom:12px;">
+            <strong>Check #:</strong> {{ detailsCheck?.requestNumber }} &nbsp;|&nbsp;
+            <strong>Payee:</strong> {{ detailsCheck?.payeeName }} &nbsp;|&nbsp;
+            <strong>Amount:</strong> {{ detailsCheck?.amount | number }}
+          </div>
+
+          <table style="width:100%;">
+            <thead>
+              <tr>
+                <th style="text-align:left;">DOC #</th>
+                <th style="text-align:left;">CATEGORY</th>
+                <th style="text-align:left;">DESCRIPTION</th>
+                <th style="text-align:right;">AMOUNT</th>
+                <th style="text-align:right;" class="no-print">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+            <tr *ngFor="let exp of detailsExpenses">
+              <td class="mono" data-label="Doc #">{{ exp.documentNumber }}</td>
+              <td data-label="Category"><span class="tag">{{ exp.categoryName }}</span></td>
+              <td data-label="Description">{{ exp.description }}</td>
+              <td class="amount" data-label="Amount">{{ exp.amount | number }} {{ exp.currency }}</td>
+              <td class="actions no-print" data-label="">
+                  <button class="icon-btn" title="Remove from check" (click)="openRemoveExpense(exp)">
+                    <i class="pi pi-times-circle"></i>
+                  </button>
+                  <button class="icon-btn" title="Delete expense entirely" (click)="openDeleteExpensePermanently(exp)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="detailsExpenses.length === 0">
+                <td colspan="5" class="empty">No expenses attached to this check.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="category-add-row no-print" style="margin-top:16px;">
+            <div class="category-add-field">
+              <label class="category-label">Add Approved Expense</label>
+              <app-searchable-select [options]="addExpenseOptions" [(ngModel)]="addExpenseId" name="addExpense"
+                placeholder="Select an expense to add" searchPlaceholder="Search expense..." [allowEmpty]="true"
+                emptyLabel="Select an expense to add"></app-searchable-select>
+            </div>
+            <button class="btn-primary category-add-btn" [disabled]="!addExpenseId || addingExpense"
+              (click)="addExpenseToCheck()">
+              <i class="pi" [ngClass]="addingExpense ? 'pi-spin pi-spinner' : 'pi-plus'"></i>
+              {{ addingExpense ? 'Adding...' : 'Add' }}
+            </button>
+          </div>
+          <div *ngIf="availableExpensesToAdd.length === 0" class="empty-inline no-print" style="margin-top:8px;">
+            No other approved expenses available to add.
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" [disabled]="exportingPdf" (click)="exportDetailsPdf()">
+          <i class="pi" [ngClass]="exportingPdf ? 'pi-spin pi-spinner' : 'pi-file-pdf'"></i>
+          {{ exportingPdf ? 'Exporting...' : 'Export PDF' }}
+        </button>
+        <button class="btn-primary" (click)="closeDetails()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remove-from-check confirm -->
+  <div class="modal-backdrop" *ngIf="showRemoveExpenseModal" (click)="closeRemoveExpense()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Remove Expense From Check</h2>
+        <button class="modal-close" (click)="closeRemoveExpense()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-text">
+          Remove <strong>{{ expenseToRemove?.documentNumber }}</strong> from this check request?
+          The expense record itself won't be deleted — it just won't be linked to this check anymore.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeRemoveExpense()">Cancel</button>
+        <button class="btn-danger" [disabled]="removingExpense" (click)="confirmRemoveExpense()">
+          {{ removingExpense ? 'Removing...' : 'Remove' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Permanent delete confirm -->
+  <div class="modal-backdrop" *ngIf="showDeleteExpenseModal" (click)="closeDeleteExpensePermanently()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Delete Expense</h2>
+        <button class="modal-close" (click)="closeDeleteExpensePermanently()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="delete-icon"><i class="pi pi-trash"></i></div>
+        <p class="delete-title">Are you sure you want to permanently delete this expense report?</p>
+        <p class="delete-text" *ngIf="expenseToDeletePermanently">
+          <strong>{{ expenseToDeletePermanently.documentNumber }}</strong>
+        </p>
+        <p class="delete-text">This removes it from the check and deletes it completely. This action cannot be undone.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeDeleteExpensePermanently()">Cancel</button>
+        <button class="btn-danger" [disabled]="deletingExpensePermanently" (click)="confirmDeleteExpensePermanently()">
+          {{ deletingExpensePermanently ? 'Deleting...' : 'Delete' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- Delete confirm modal -->
+  <div class="modal-backdrop" *ngIf="showDeleteModal" (click)="closeDeleteModal()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Delete Check Request</h2>
+        <button class="modal-close" (click)="closeDeleteModal()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="delete-icon"><i class="pi pi-trash"></i></div>
+        <p class="delete-title">Are you sure you want to delete this check request?</p>
+        <p class="delete-text">
+          <strong>{{ deleteTargetLabel }}</strong>
+        </p>
+        <p class="delete-text">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeDeleteModal()">Cancel</button>
+        <button class="btn-danger" [disabled]="deleting" (click)="confirmDelete()">
+          {{ deleting ? 'Deleting...' : 'Delete' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop" *ngIf="showCreateCheckBookModal" (click)="closeCreateCheckBookModal()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>New Checkbook</h2>
+        <button class="modal-close" (click)="closeCreateCheckBookModal()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label>Check Number</label>
+          <input type="text" [(ngModel)]="newCheckBook.checkNumber" placeholder="e.g. testing / #1000" />
+        </div>
+        <div class="form-field">
+          <label>Bank Account</label>
+          <app-searchable-select [options]="newCheckBookBankOptions" [(ngModel)]="newCheckBook.bankAccountId"
+            name="newCheckBookBankAccount" placeholder="Select bank account"
+            searchPlaceholder="Search bank account..."></app-searchable-select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeCreateCheckBookModal()">Cancel</button>
+        <button class="btn-primary" [disabled]="!isNewCheckBookValid || savingCheckBook"
+          (click)="submitCreateCheckBook()">
+          {{ savingCheckBook ? 'Saving...' : 'Create Checkbook' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- Request Reallocation modal -->
+  <div class="modal-backdrop" *ngIf="showReallocationModal" (click)="closeReallocationModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Request Reallocation — {{ reallocationTargetCheck?.requestNumber }}</h2>
+        <button class="modal-close" (click)="closeReallocationModal()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field span-2">
+          <label>Expenses to reallocate</label>
+          <div class="expense-list">
+            <label class="expense-row" *ngFor="let exp of reallocationExpenses">
+              <input type="checkbox" [checked]="isReallocationExpenseSelected(exp.id)"
+                (change)="toggleReallocationExpense(exp.id)" />
+              <span class="exp-doc">{{ exp.documentNumber }}</span>
+              <span class="exp-desc">{{ exp.description }}</span>
+              <span class="exp-amount">{{ exp.amount | number }} {{ exp.currency }}</span>
+            </label>
+            <div *ngIf="reallocationExpenses.length === 0" class="empty-inline">No expenses on this check.</div>
+          </div>
+        </div>
+        <div class="form-field span-2">
+          <label>Reason</label>
+          <textarea rows="3" [(ngModel)]="reallocationReason" placeholder="Why does this need reallocation?"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeReallocationModal()">Cancel</button>
+        <button class="btn-primary" [disabled]="!isReallocationFormValid || requestingReallocation"
+          (click)="submitReallocation()">
+          {{ requestingReallocation ? 'Submitting...' : 'Submit Reallocation' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approve/Reject Reallocation modal -->
+  <div class="modal-backdrop" *ngIf="showReviewReallocationModal" (click)="closeReviewReallocation()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ reviewReallocationAction === 'approve' ? 'Approve' : 'Reject' }} Reallocation</h2>
+        <button class="modal-close" (click)="closeReviewReallocation()"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-text">{{ reviewReallocationTarget?.requestNumber }} — {{ reviewReallocationTarget?.reason }}
+        </p>
+        <div class="form-field">
+          <label>Note (optional)</label>
+          <textarea rows="3" [(ngModel)]="reviewReallocationReason" placeholder="Add a note..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeReviewReallocation()">Cancel</button>
+        <button [class]="reviewReallocationAction === 'approve' ? 'btn-primary' : 'btn-danger'"
+          [disabled]="reviewingReallocation" (click)="confirmReviewReallocation()">
+          {{ reviewingReallocation ? 'Saving...' : (reviewReallocationAction === 'approve' ? 'Approve' : 'Reject') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reallocation Details modal -->
+  <div class="modal-backdrop" *ngIf="showReallocationDetailsModal" (click)="closeReallocationDetails()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Reallocation {{ reallocationDetailsTarget?.requestNumber }}</h2>
+        <button class="modal-close" (click)="closeReallocationDetails()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <div *ngIf="reallocationDetailsError" class="alert-error">{{ reallocationDetailsError }}</div>
+        <div *ngIf="reallocationDetailsLoading" class="empty-inline">Loading...</div>
+
+        <ng-container *ngIf="!reallocationDetailsLoading && reallocationDetailsTarget as r">
+          <div class="print-header" style="margin-bottom:12px;">
+            <strong>Check #:</strong> {{ r.checkRequestNumber }} ({{ r.checkNumber }}) &nbsp;|&nbsp;
+            <strong>Amount:</strong> {{ r.amount | number }} &nbsp;|&nbsp;
+            <strong>Status:</strong>
+            <span class="status-badge" [ngClass]="reallocationStatusClass[r.status]">
+              {{ reallocationStatusLabels[r.status] }}
+            </span>
+          </div>
+
+          <table style="width:100%;">
+            <thead>
+              <tr>
+                <th style="text-align:left;">DOC #</th>
+                <th style="text-align:right;">AMOUNT</th>
+              </tr>
+            </thead>
+            <tbody>
+          <tr *ngFor="let exp of r.expenses">
+            <td class="mono" data-label="Doc #">{{ exp.documentNumber }}</td>
+            <td class="amount" data-label="Amount">{{ exp.amount | number }}</td>
+          </tr>
+              <tr *ngIf="r.expenses.length === 0">
+                <td colspan="2" class="empty">No expenses.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="form-field span-2" style="margin-top:16px;">
+            <label>Reason</label>
+            <p>{{ r.reason }}</p>
+          </div>
+
+          <div class="form-grid" style="margin-top:8px;">
+            <div class="form-field">
+              <label>Created By</label>
+              <p>{{ r.createdByName }} — {{ r.createdAt | date: 'yyyy-MM-dd HH:mm' }}</p>
+            </div>
+            <div class="form-field">
+              <label>Reviewed By</label>
+              <p>
+                {{ r.reviewedByName || '—' }}
+                <span *ngIf="r.reviewedAt"> — {{ r.reviewedAt | date: 'yyyy-MM-dd HH:mm' }}</span>
+              </p>
+            </div>
+            <div class="form-field span-2" *ngIf="r.reviewReason">
+              <label>Review Note</label>
+              <p>{{ r.reviewReason }}</p>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-primary" (click)="closeReallocationDetails()">Close</button>
+      </div>
+    </div>
+  </div>

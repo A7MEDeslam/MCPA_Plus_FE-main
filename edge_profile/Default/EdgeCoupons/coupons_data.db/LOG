@@ -1,0 +1,5 @@
+2026/05/19-15:27:16.450 2914 Creating DB G:\ProFlow_Front\my-app\edge_profile\Default\EdgeCoupons/coupons_data.db since it was missing.
+2026/05/19-15:27:16.457 2914 Reusing MANIFEST G:\ProFlow_Front\my-app\edge_profile\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/05/19-15:28:55.956 2b50 Level-0 table #5: started
+2026/05/19-15:28:55.967 2b50 Level-0 table #5: 682457 bytes OK
+2026/05/19-15:28:55.970 2b50 Delete type=0 #3

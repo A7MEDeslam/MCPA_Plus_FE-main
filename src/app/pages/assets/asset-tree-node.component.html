@@ -1,0 +1,33 @@
+<div class="tree-node-wrapper">
+  <div class="node-content">
+    <button
+      *ngIf="node.children.length > 0"
+      class="expand-btn"
+      (click)="toggleExpand()"
+      [class.expanded]="expanded"
+    >
+      <i class="pi pi-chevron-right"></i>
+    </button>
+    <div *ngIf="node.children.length === 0" class="expand-btn-placeholder"></div>
+
+    <div class="node-info">
+      <div class="node-title">
+        <span class="node-name">{{ node.name }}</span>
+        <span class="node-code">({{ node.accountNo }})</span>
+      </div>
+      <div class="node-meta">
+        <span class="badge" [ngClass]="{ 'badge-primary': node.level === 1, 'badge-info': node.level > 1 }">
+          {{ getLevelName(node.level) }}
+        </span>
+        <span *ngIf="node.isActive" class="badge badge-success">Active</span>
+        <span *ngIf="!node.isActive" class="badge badge-secondary">Inactive</span>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="expanded && node.children.length > 0" class="children">
+    <div *ngFor="let child of node.children" class="child-item">
+      <app-asset-tree-node [node]="child"></app-asset-tree-node>
+    </div>
+  </div>
+</div>

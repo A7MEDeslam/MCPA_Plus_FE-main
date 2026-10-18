@@ -1,0 +1,27 @@
+<div class="pagination-container">
+  <div class="pagination-info">
+    Showing <span>{{ totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1 }}</span> to <span>{{ getMin(currentPage * pageSize, totalItems) }}</span> of <span>{{ totalItems }}</span> entries
+  </div>
+  <div class="pagination-controls">
+    <button class="btn-page" [disabled]="currentPage === 1" (click)="prevPage()" title="Previous Page">
+      <i class="pi pi-chevron-left"></i>
+    </button>
+    
+    @for (page of visiblePages; track $index) {
+      @if (page === '...') {
+        <span class="page-ellipsis">...</span>
+      } @else {
+        <button 
+          class="btn-page" 
+          [class.active]="page === currentPage" 
+          (click)="onPageSelect(page)">
+          {{ page }}
+        </button>
+      }
+    }
+
+    <button class="btn-page" [disabled]="currentPage === totalPages" (click)="nextPage()" title="Next Page">
+      <i class="pi pi-chevron-right"></i>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,257 @@
+<div class="page active" id="page-materials">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-box"></i> Raw Materials</h1>
+      <p>Manage raw material directory and thresholds</p>
+    </div>
+    <button *ngIf="canCreate" class="btn btn-primary" (click)="modalOpen = true"><i class="pi pi-plus"></i> New
+      Material</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Registered Materials</span>
+      <div class="search-input-wrapper">
+        <i class="pi pi-search search-icon"></i>
+        <input class="form-control search-input" placeholder="Search materials..." [ngModel]="materialSearch()"
+          (ngModelChange)="materialSearch.set($event); pagination.currentPage.set(1)" />
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Unit</th>
+            <th>Min Stock</th>
+            <th>Current Stock</th>
+            <th>Status</th>
+            <th>Links</th>
+            <th>Suppliers</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (pagedMaterials().length) {
+          @for (m of pagedMaterials(); track m.id) {
+          <tr>
+            <td><b>{{m.code || '-'}}</b></td>
+            <td>{{m.name}}</td>
+            <td>{{m.unit}}</td>
+            <td>{{m.minStockLevel}}</td>
+            <td>{{m.currentStock}}</td>
+            <td><span class="badge"
+                [class]="m.stockStatus === 'HealthyStock' ? 'badge-received' : m.stockStatus === 'LowStock' ? 'badge-partial' : 'badge-cancelled'">{{m.stockStatus}}</span>
+            </td>
+            <td>
+              <div *ngIf="m.links?.length; else noLinks">
+                <div *ngFor="let link of m.links" class="link-item">
+                  <a href="{{link.url}}" target="_blank" rel="noopener noreferrer">
+                    <i class="pi pi-external-link"></i> {{ link.label || link.url }}
+                  </a>
+                </div>
+              </div>
+              <ng-template #noLinks>—</ng-template>
+            </td>
+            <td>{{m.suppliers.length ? m.suppliers.map(s => s.supplierName).join(', ') : '—'}}</td>
+            <td>
+              <button *ngIf="canUpdateLinks || canUpdateSuppliers" class="btn btn-ghost" (click)="openEdit(m)"><i
+                  class="pi pi-pencil"></i> Edit</button>
+              <button *ngIf="canAssign" class="btn btn-primary" (click)="openAssign(m)"><i class="pi pi-sign-in"></i>
+                Assign</button>
+            </td>
+          </tr>
+          }
+          } @else {
+          <tr>
+            <td colspan="9" class="empty">No raw materials found</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pagination [totalItems]="filteredMaterials().length" [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()" (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+</div>
+
+@if (modalOpen) {
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title"><i class="pi pi-plus-circle"></i> New Raw Material</span><button
+        class="modal-close" (click)="modalOpen = false"><i class="pi pi-times"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Code</label>
+          <input class="form-control" [class.invalid]="errors['code']" placeholder="e.g. RM-001" maxlength="30"
+            [(ngModel)]="form.code" (keypress)="onlyCodeChars($event)" (input)="sanitizeCode()" />
+          <small class="error-text" *ngIf="errors['code']">{{ errors['code'] }}</small>
+        </div>
+
+      <div class="form-group">
+        <label>Name *</label>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <app-searchable-select style="flex:1" [class.invalid]="errors['name']"
+            [options]="rawMaterialNameOptions()" [(ngModel)]="form.name"
+            placeholder="Select raw material name" searchPlaceholder="Search raw material names..."
+            (ngModelChange)="validateName()">
+          </app-searchable-select>
+          <button *ngIf="canCreate" type="button" class="btn btn-ghost" title="Add raw material name"
+            (click)="addingMaterialName = !addingMaterialName">
+            <i class="pi pi-plus"></i> Add name
+          </button>
+          <button *ngIf="canCreate" type="button" class="btn btn-ghost"
+            (click)="managingMaterialNames = !managingMaterialNames">
+            <i class="pi pi-cog"></i> Manage names
+          </button>
+        </div>
+        <div *ngIf="addingMaterialName" style="display:flex;gap:8px;margin-top:8px">
+          <input class="form-control" style="flex:1" placeholder="New raw material name" maxlength="100"
+            [(ngModel)]="newMaterialName" />
+          <button type="button" class="btn btn-primary" [disabled]="savingMaterialName || !newMaterialName.trim()"
+            (click)="addMaterialName()">{{ savingMaterialName ? 'Saving...' : 'Save' }}</button>
+          <button type="button" class="btn btn-ghost" (click)="addingMaterialName = false">Cancel</button>
+        </div>
+        <div *ngIf="managingMaterialNames" style="margin-top:10px;border:1px solid var(--border-color, #ddd);border-radius:6px;padding:10px">
+          <div *ngFor="let item of masterData.RAW_MATERIAL_NAMES()" style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <ng-container *ngIf="editingRawMaterialName?.id !== item.id; else editRawMaterialName">
+              <span style="flex:1">{{ item.name }}</span>
+              <button type="button" class="btn btn-ghost" (click)="editingRawMaterialName = { id: item.id, name: item.name }" aria-label="Edit name">
+                <i class="pi pi-pencil"></i>
+              </button>
+              <button type="button" class="btn btn-ghost" (click)="deleteRawMaterialName(item)" aria-label="Delete name">
+                <i class="pi pi-trash"></i>
+              </button>
+            </ng-container>
+            <ng-template #editRawMaterialName>
+              <input class="form-control" style="flex:1" [(ngModel)]="editingRawMaterialName!.name" maxlength="100" />
+              <button type="button" class="btn btn-primary" [disabled]="savingMaterialName" (click)="saveRawMaterialNameEdit()">Save</button>
+              <button type="button" class="btn btn-ghost" (click)="editingRawMaterialName = null">Cancel</button>
+            </ng-template>
+          </div>
+          <small *ngIf="!masterData.RAW_MATERIAL_NAMES().length">No raw material names found.</small>
+        </div>
+        <small class="error-text" *ngIf="errors['name']">{{ errors['name'] }}</small>
+      </div>
+      
+      <div class="form-group">
+        <label>Unit *</label>
+        <input class="form-control" [class.invalid]="errors['unit']" placeholder="e.g. kg, pcs, m" maxlength="20"
+          [(ngModel)]="form.unit" (input)="onUnitInput($event)" />
+        <small class="error-text" *ngIf="errors['unit']">{{ errors['unit'] }}</small>
+      </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Min Stock Level *</label>
+          <input class="form-control" [class.invalid]="errors['minStockLevel']" type="number" min="0" step="any"
+            (keydown)="onlyNumbers($event)" [(ngModel)]="form.minStockLevel" />
+          <small class="error-text" *ngIf="errors['minStockLevel']">{{ errors['minStockLevel'] }}</small>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div style="width:100%">
+          <label>Links</label>
+          <div *ngFor="let l of form.links; let i = index" style="display:flex;gap:8px;margin-bottom:6px;">
+            <input class="form-control" type="url" [(ngModel)]="l.url" placeholder="https://..." />
+            <input class="form-control" [(ngModel)]="l.label" placeholder="Label (optional)" />
+            <button class="btn btn-ghost" (click)="removeLinkFromForm(i)">Remove</button>
+          </div>
+          <button class="btn btn-ghost" (click)="addLinkToForm()">+ Add link</button>
+          <small class="error-text" *ngIf="errors['links']">{{ errors['links'] }}</small>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div style="width:100%">
+          <div class="form-group"><label>Suppliers (select one or more)</label></div>
+          <div *ngFor="let s of filteredSuppliers()" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <input type="checkbox" [checked]="form.suppliers.find(x => x.supplierId===s.id)"
+              (change)="toggleSupplierSelection(s)" />
+            <div style="flex:1">{{s.name}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="modalOpen = false">Cancel</button>
+      <button class="btn btn-primary" (click)="saveMaterial()">Save Material</button>
+    </div>
+  </div>
+</div>
+}
+
+@if (editOpen) {
+<div class="modal-overlay open" (click)="editOpen=false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header"><span class="modal-title">Edit Raw Material Links & Suppliers</span><button
+        class="modal-close" (click)="editOpen = false">x</button></div>
+    <div class="modal-body">
+      <h3>Links</h3>
+      <div *ngFor="let l of editing.links; let i = index" style="display:flex;gap:8px;margin-bottom:6px;">
+        <input class="form-control" [(ngModel)]="editing.links[i].url" placeholder="https://..." />
+        <input class="form-control" [(ngModel)]="editing.links[i].label" placeholder="Label (optional)" />
+        <button *ngIf="canUpdateLinks" class="btn btn-ghost" (click)="removeLinkFromEditing(i)">Remove</button>
+      </div>
+      <button *ngIf="canUpdateLinks" class="btn btn-ghost" (click)="addLinkToEditing()">+ Add link</button>
+      <button *ngIf="canUpdateLinks" class="btn btn-ghost" style="margin-top:8px;" (click)="saveLinks()">Save
+        Links</button>
+
+      <h3 style="margin-top:12px">Suppliers</h3>
+      <input class="form-control" style="margin-bottom:8px" placeholder="Search suppliers..."
+        [(ngModel)]="editingSupplierSearch" />
+      <div *ngFor="let s of filteredEditingSuppliers()"
+        style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <input type="checkbox" [checked]="editing.suppliers?.find(x => x.supplierId === s.id)"
+          (change)="toggleEditingSupplier(s)" />
+        <div style="flex:1">{{s.name}}</div>
+      </div>
+      <button *ngIf="canUpdateSuppliers" class="btn btn-ghost" (click)="saveSuppliers()">Save Suppliers</button>
+    </div>
+  </div>
+</div>
+}
+
+@if (assignOpen) {
+<div class="modal-overlay open" (click)="assignOpen=false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header"><span class="modal-title">Assign Material to Project</span><button class="modal-close"
+        (click)="assignOpen = false">x</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Project</label>
+          <app-searchable-select [(ngModel)]="assignForm.projectId" [options]="projectOptions()"
+            placeholder="Select project" searchPlaceholder="Search projects..." [allowEmpty]="true"
+            emptyLabel="Select project">
+          </app-searchable-select>
+        </div>
+        <div class="form-group"><label>From Warehouse</label>
+          <app-searchable-select [(ngModel)]="assignForm.fromWarehouseId" [options]="warehouseOptions()"
+            placeholder="Select warehouse" searchPlaceholder="Search warehouses...">
+          </app-searchable-select>
+        </div>
+        <div class="form-group"><label>To Warehouse (Third)</label>
+          <app-searchable-select [(ngModel)]="assignForm.toWarehouseId" [options]="thirdWarehouseOptions()"
+            placeholder="Select third warehouse" searchPlaceholder="Search warehouses...">
+          </app-searchable-select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>Quantity</label><input class="form-control" type="number" min="1"
+            [(ngModel)]="assignForm.quantity" /></div>
+        <div class="form-group"><label>Notes</label><input class="form-control" [(ngModel)]="assignForm.notes" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="assignOpen = false">Cancel</button>
+      <button class="btn btn-primary" [disabled]="isAssigning" (click)="submitAssign()">
+        {{ isAssigning ? 'Assigning...' : 'Assign' }}
+      </button>
+    </div>
+  </div>
+</div>
+}

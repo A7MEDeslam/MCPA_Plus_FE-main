@@ -1,0 +1,207 @@
+    <div class="layout">
+      <div class="col">
+        @if (loading()) {
+          <section class="ui-card" aria-busy="true">
+            <div class="skeleton title"></div>
+            <div class="skeleton"></div>
+            <div class="skeleton"></div>
+          </section>
+        } @else {
+          @let s = summary();
+
+          @if (s.applicable) {
+            <section class="ui-card">
+              <div class="ui-card__head">
+                <h3 class="ui-card__title">{{ stage().label }} summary</h3>
+                @if (s.evidenceProgress; as p) {
+                  <app-badge [tone]="p.done >= p.total ? 'success' : 'warning'">
+                    {{ p.done }} of {{ p.total }} complete
+                  </app-badge>
+                }
+              </div>
+
+              @if (s.missing) {
+                <app-empty-state
+                  variant="inline"
+                  [title]="'No ' + stage().label + ' details recorded yet.'"
+                />
+              } @else {
+                @if (s.highlights.length) {
+                  <div class="tiles">
+                    @for (h of s.highlights; track h.label) {
+                      <div class="tile">
+                        <span class="tile-label">{{ h.label }}</span>
+                        <strong class="tile-value">{{ h.value }}</strong>
+                        @if (h.progress !== null) {
+                          <span class="meter" aria-hidden="true"
+                            ><i [style.width.%]="h.progress"></i
+                          ></span>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+
+                @if (s.fields.length) {
+                  <dl class="facts">
+                    @for (f of s.fields; track f.label) {
+                      <div>
+                        <dt>{{ f.label }}</dt>
+                        <dd>{{ f.value }}</dd>
+                      </div>
+                    }
+                  </dl>
+                }
+
+                @for (note of s.notes; track note.label) {
+                  <div class="note">
+                    <h4>{{ note.label }}</h4>
+                    <p>{{ note.text }}</p>
+                  </div>
+                }
+
+                @if (s.evidences.length) {
+                  <ul class="evidence">
+                    @for (e of s.evidences; track e.label) {
+                      <li [class.done]="e.done">
+                        <i
+                          [class]="e.done ? 'pi pi-check-circle' : 'pi pi-circle'"
+                          aria-hidden="true"
+                        ></i>
+                        <span>
+                          <strong>{{ e.label }}</strong>
+                          <small>{{ e.details }}</small>
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                }
+
+                @if (s.approvedTransition) {
+                  <p class="approved">
+                    <i class="pi pi-check-circle" aria-hidden="true"></i>
+                    Approved: {{ s.approvedTransition }}
+                  </p>
+                }
+              }
+            </section>
+          }
+
+          <section class="ui-card">
+            <div class="ui-card__head">
+              <h3 class="ui-card__title">Account details</h3>
+            </div>
+            <dl class="facts">
+              <div>
+                <dt>Industry</dt>
+                <dd>{{ customer().industryTypeName || '-' }}</dd>
+              </div>
+              <div>
+                <dt>Sales owner</dt>
+                <dd>{{ customer().assignedToName || 'Unassigned' }}</dd>
+              </div>
+              <div>
+                <dt>Phone</dt>
+                <dd>
+                  @if (customer().phoneNumber) {
+                    <a [href]="'tel:' + customer().phoneNumber">{{ customer().phoneNumber }}</a>
+                  } @else {
+                    -
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Email</dt>
+                <dd>
+                  @if (customer().email) {
+                    <a [href]="'mailto:' + customer().email">{{ customer().email }}</a>
+                  } @else {
+                    -
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Website</dt>
+                <dd>
+                  @if (customer().website) {
+                    <a [href]="customer().website" target="_blank" rel="noopener">{{
+                      customer().website
+                    }}</a>
+                  } @else {
+                    -
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Location</dt>
+                <dd>{{ location() }}</dd>
+              </div>
+            </dl>
+            <div class="note">
+              <h4>Business notes</h4>
+              <p>{{ customer().notes || 'No business notes have been added yet.' }}</p>
+            </div>
+          </section>
+        }
+      </div>
+
+      <aside class="col">
+        @if (pending(); as p) {
+          <section class="ui-card pending">
+            <p class="ui-card__sub">Pending approval</p>
+            <h3 class="ui-card__title transition">
+              {{ p.fromStatusName }}
+              <i class="pi pi-arrow-right" aria-hidden="true"></i>
+              {{ p.toStatusName }}
+            </h3>
+            <dl class="facts compact">
+              <div>
+                <dt>Requested by</dt>
+                <dd>{{ p.createdByUserName || p.createdByUserId }}</dd>
+              </div>
+              <div>
+                <dt>Target decision date</dt>
+                <dd>{{ formatDate(p.targetDecisionDate) }}</dd>
+              </div>
+            </dl>
+            <blockquote class="reason">{{ p.upgradeReason }}</blockquote>
+            @if (canReview()) {
+              <div class="actions">
+                <button
+                  type="button"
+                  class="ui-btn ui-btn--primary"
+                  [disabled]="busy()"
+                  (click)="approve.emit()"
+                >
+                  <i
+                    [class]="busy() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"
+                    aria-hidden="true"
+                  ></i>
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  class="ui-btn ui-btn--ghost"
+                  [disabled]="busy()"
+                  (click)="reject.emit()"
+                >
+                  Return
+                </button>
+              </div>
+            } @else {
+              <p class="muted">Waiting for CEO review.</p>
+            }
+          </section>
+        }
+
+        <section class="ui-card focus">
+          <p class="ui-card__sub">Suggested focus</p>
+          <h3 class="ui-card__title">{{ focus().title }}</h3>
+          <p class="focus-text">{{ focus().text }}</p>
+          <button type="button" class="ui-btn ui-btn--ghost ui-btn--block" (click)="edit.emit()">
+            Open customer details
+          </button>
+        </section>
+      </aside>
+    </div>
+  

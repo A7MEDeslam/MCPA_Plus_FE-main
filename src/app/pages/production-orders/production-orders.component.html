@@ -1,0 +1,289 @@
+<div class="page active" id="page-prodorders">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-cog" style="margin-right: 8px;"></i>Production Orders</h1>
+      <p>Manage manufacturing jobs that consume raw materials</p>
+    </div>
+    <button *ngIf="canCreate" class="btn btn-amber" (click)="openCreateWO()">+ New Work Order</button>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">All Work Orders</span></div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>WO #</th>
+            <th>Start</th>
+            <th>Product</th>
+            <th>Production Type</th>
+            <th>Planned Qty</th>
+            <th>Produced Qty</th>
+            <th>Due</th>
+            <th>Production Status</th>
+            <th>Approval Status</th>
+            <th>Receipt Status</th>
+            <th>
+              Notes
+            </th>
+            <th>Material Requirements</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="prod-tbody">
+          @if (pagedWOs().length) {
+          @for (w of pagedWOs(); track w.id) {
+          <tr>
+            <td><b>{{w.woNumber || w.id}}</b></td>
+            <td>{{w.startDate | date:'mediumDate'}}</td>
+            <td>{{w.finishedProductName}}</td>
+            <td><span class="badge badge-type" [class.badge-mto]="productionTypeLabel(w) === 'MTO'">{{productionTypeLabel(w)}}</span></td>
+            <td>{{w.plannedQty}}</td>
+            <td>{{w.producedQty}}</td>
+            <td>{{w.dueDate ? (w.dueDate | date:'mediumDate') : '-'}}</td>
+            <td><span class="badge" [class]="'badge-' + (w.status==='Done'?'done':'inprod')">{{w.status}}</span></td>
+            <td><span class="badge" [class]="statusClass(approvalStatusLabel(w))">{{approvalStatusLabel(w)}}</span></td>
+            <td><span class="badge" [class]="statusClass(receiptStatusLabel(w))">{{receiptStatusLabel(w)}}</span></td>
+            <td>
+              <div class="notes-cell" *ngIf="w.notes">{{w.notes}}</div>
+              <div class="notes-cell empty" *ngIf="!w.notes">-</div>
+            </td>
+            <td><button class="btn btn-xs btn-ghost" type="button" (click)="openMaterialRequirements(w)">View
+                Materials</button></td>
+            <td>
+              @if (w.status === 'InProduction' || w.status === 'Partial') {
+              <button *ngIf="canComplete" class="btn btn-xs btn-amber" (click)="openCompleteWO(w.id)">Complete</button>
+              }
+              @if (canCreate && w.status !== 'Done' && w.status !== 'Cancelled') {
+              <button class="btn btn-xs btn-ghost" (click)="openEditWO(w)" title="Edit"><i
+                  class="pi pi-pencil"></i></button>
+              }
+              @if (canCreate && w.status !== 'Done' && w.status !== 'Partial') {
+              <button class="btn btn-xs btn-ghost" style="color: var(--danger, #dc3545)" (click)="deleteWO(w.id)"
+                title="Delete"><i class="pi pi-trash"></i></button>
+              }
+              @if (w.producedQty > 0) {
+              <button class="btn btn-xs btn-ghost" (click)="viewWOSerials(w.id)">Serials</button>
+              }
+            </td>
+          </tr>
+          }
+          } @else {
+          <tr>
+            <td colspan="13" class="empty">No production orders yet</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pagination [totalItems]="workOrderService.WorkOrders().length" [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()" (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+</div>
+
+@if (materialRequirementsModalOpen) {
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event, 'materials')">
+  <div class="modal material-requirements-modal">
+    <div class="modal-header">
+      <span class="modal-title">Material Requirements — {{ materialRequirementsOrder?.woNumber ||
+        materialRequirementsOrder?.id }}</span>
+      <button class="modal-close" type="button" (click)="materialRequirementsModalOpen = false" aria-label="Close"><i
+          class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-error" *ngIf="materialRequirementsError">{{ materialRequirementsError }}</div>
+      <div class="empty" *ngIf="materialRequirementsLoading"><i class="pi pi-spin pi-spinner"></i> Loading material
+        requirements...</div>
+      <div class="table-responsive" *ngIf="!materialRequirementsLoading && !materialRequirementsError">
+        <table>
+          <thead>
+            <tr>
+              <th>Raw Material</th>
+              <th>Unit</th>
+              <th>Required</th>
+              <th>Available</th>
+              <th>Shortage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let line of materialRequirements()">
+              <td>{{ line.rawMaterialName }}</td>
+              <td>{{ line.unit }}</td>
+              <td>{{ line.requiredQty | number:'1.0-3' }}</td>
+              <td>{{ line.availableQty | number:'1.0-3' }}</td>
+              <td><span class="badge" [class.badge-low]="line.shortageQty > 0"
+                  [class.badge-ok]="line.shortageQty <= 0">{{ line.shortageQty | number:'1.0-3' }}</span></td>
+            </tr>
+            <tr *ngIf="materialRequirements().length === 0">
+              <td colspan="5" class="empty">No material requirements found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" type="button"
+        (click)="materialRequirementsModalOpen = false">Close</button></div>
+  </div>
+</div>
+}
+
+@if (modalOpen) {
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event, 'new')">
+  <div class="modal production-order-modal">
+    <div class="modal-header">
+      <span class="modal-title">{{ editingWorkOrderId ? 'Edit Production Order' : 'New Production Order' }}</span>
+      <button class="modal-close" (click)="modalOpen = false"><i class="pi pi-times"></i></button>
+    </div>
+    <div class="modal-body">
+      @if (!editingWorkOrderId) {
+      <div class="modal-step-intro">
+        <span class="eyebrow">Production route</span>
+        <h3>How will this order be fulfilled?</h3>
+        <p>Select a route to show the required details below.</p>
+      </div>
+      <div class="production-type-grid">
+        <button type="button" class="production-type-card" [class.selected]="prodForm.productionType === 'MTS'"
+          (click)="selectProductionType('MTS')">
+          <span class="production-type-icon"><i class="pi pi-box"></i></span>
+          <span class="production-type-copy"><strong>MTS · Make To Stock</strong><small>Build finished goods for stock. CEO approval is required before production starts.</small></span>
+          <i class="pi pi-chevron-right production-type-arrow"></i>
+        </button>
+        <button type="button" class="production-type-card" [class.selected]="prodForm.productionType === 'MTO'"
+          (click)="selectProductionType('MTO')">
+          <span class="production-type-icon"><i class="pi pi-users"></i></span>
+          <span class="production-type-copy"><strong>MTO · Make To Order</strong><small>Build against a customer Contract / POC. Material check runs automatically.</small></span>
+          <i class="pi pi-chevron-right production-type-arrow"></i>
+        </button>
+      </div>
+      }
+      @if (editingWorkOrderId || createStep === 2) {
+      <div class="flow-notice" [class.mto]="prodForm.productionType === 'MTO'">
+        <i class="pi" [class.pi-shield]="prodForm.productionType === 'MTS'" [class.pi-sync]="prodForm.productionType === 'MTO'"></i>
+        <span>{{prodForm.productionType === 'MTS' ? 'This order will be held for CEO approval before production starts.' : 'This order is linked to a customer Contract / POC. Material availability is checked automatically.'}}</span>
+      </div>
+      @if (prodForm.productionType === 'MTO') {
+      <div class="form-grid mto-fields">
+        <div class="form-group"><label>Customer <span class="required">*</span></label><select class="form-control" [(ngModel)]="prodForm.customerId" (ngModelChange)="onCustomerChange($event)">
+            <option [ngValue]="null">-- Select customer --</option>
+            @for (customer of customers(); track customer.id) { <option [ngValue]="customer.id">{{customer.companyName}}</option> }
+          </select><small class="field-help">The customer this order is being built for.</small></div>
+        <div class="form-group"><label>Contract / POC reference <span class="required">*</span></label><select class="form-control" [(ngModel)]="prodForm.customerContractId" [disabled]="!prodForm.customerId || customerContractsLoading()">
+            <option [ngValue]="null">{{ customerContractsLoading() ? 'Loading contracts...' : '-- Select contract / POC --' }}</option>
+            @for (contract of customerContracts(); track contract.contractId) {
+            <option [ngValue]="contract.contractId">#{{contract.contractId}} · {{contract.contractTitle}}</option>
+            }
+          </select><small class="field-help">Choose an approved Contract or POC for this customer.</small></div>
+      </div>
+      }
+      <div class="product-lines-section">
+        <div class="section-heading-row"><div><label>Products <span class="required">*</span></label><small class="field-help">Add one or more products and set the quantity for each.</small></div>
+          <button type="button" class="btn btn-xs btn-ghost add-product-btn" (click)="addProductionLine()"><i class="pi pi-plus"></i> Add product</button>
+        </div>
+        <div class="product-line" *ngFor="let line of productionLines; let i = index">
+          <div class="form-group product-picker"><label>Product {{i + 1}}</label><select class="form-control" [(ngModel)]="line.productId" [name]="'product-' + i">
+              <option [ngValue]="0">-- Select product --</option>
+              @for (p of masterData.PRODUCTS(); track p.code) { <option [ngValue]="p.id">{{p.code}} · {{p.name}}</option> }
+            </select></div>
+          <div class="form-group quantity-picker"><label>Quantity</label><input class="form-control" type="number" min="1" [(ngModel)]="line.qty" [name]="'qty-' + i" /></div>
+          <button type="button" class="remove-product-btn" (click)="removeProductionLine(i)" [disabled]="productionLines.length === 1" aria-label="Remove product"><i class="pi pi-trash"></i></button>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>Start Date</label>
+          <input class="form-control" type="date" [(ngModel)]="prodForm.start" (ngModelChange)="onStartDateChange()" />
+        </div>
+        <div class="form-group"><label>Due Date</label>
+          <input class="form-control" type="date" [(ngModel)]="prodForm.due" [min]="prodForm.start" />
+          @if (isDueBeforeStart()) {
+          <small style="color:#e53e3e;">Due date cannot be before the start date.</small>
+          }
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:12px"><label>Notes</label><input class="form-control"
+          [(ngModel)]="prodForm.notes" /></div>
+      }
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="modalOpen = false">Cancel</button>
+      @if (editingWorkOrderId || createStep === 2) { <button class="btn btn-amber" (click)="editingWorkOrderId ? updateProd() : saveProd()">
+        {{ editingWorkOrderId ? 'Save Changes' : 'Create Work Order' }}
+      </button> }
+    </div>
+  </div>
+</div>
+}
+
+@if (completeModalOpen) {
+<div class="modal-overlay open" (click)="closeModalIfOverlay($event, 'complete')">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Complete Work Order</span><button class="modal-close"
+        (click)="completeModalOpen = false"><i class="pi pi-times"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Produced Qty</label><input class="form-control" type="number" min="1"
+            [(ngModel)]="completeForm.producedQty" /></div>
+        <div class="form-group"><label>Raw Material Warehouse</label><select class="form-control"
+            [(ngModel)]="completeForm.rawWarehouseId">
+            <option [ngValue]="0">-- Select --</option>
+            @for (w of masterData.WAREHOUSES(); track w.id) {
+            @if (w.typeName === 'RawMaterial') { <option [ngValue]="w.id">{{w.name}}</option> }
+            }
+          </select></div>
+        <div class="form-group"><label>Finished Goods Warehouse</label><select class="form-control"
+            [(ngModel)]="completeForm.finishedGoodsWarehouseId">
+            <option [ngValue]="0">-- Select --</option>
+            @for (w of masterData.WAREHOUSES(); track w.id) {
+            @if (w.typeName === 'FinishedGoods') { <option [ngValue]="w.id">{{w.name}}</option> }
+            }
+          </select></div>
+        <div class="form-group"><label>Production Date</label><input class="form-control" type="date"
+            [(ngModel)]="completeForm.productionDate" /></div>
+      </div>
+
+      <div class="form-group" style="margin-top:12px">
+        <button class="btn btn-secondary" type="button" (click)="previewConsumption()">Preview Consumption</button>
+      </div>
+
+      @if (previewError) {
+      <div class="alert alert-error">{{previewError}}</div>
+      }
+
+      @if (previewLines.length) {
+      <div class="card card-subtle" style="margin-top:12px">
+        <div class="card-header"><span class="card-title">Consumption Preview</span></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Raw Material</th>
+                <th>Unit</th>
+                <th>Required</th>
+                <th>Available</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of previewLines; track line.rawMaterialId) {
+              <tr>
+                <td>{{line.rawMaterialName}}</td>
+                <td>{{line.unit}}</td>
+                <td>{{line.requiredQty}}</td>
+                <td>{{line.availableQty}}</td>
+                <td><span class="badge"
+                    [class]="line.isSufficient ? 'badge-received' : 'badge-cancelled'">{{line.isSufficient ?
+                    'Sufficient' : 'Insufficient'}}</span></td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      }
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="completeModalOpen = false">Cancel</button>
+      <button class="btn btn-amber" (click)="completeWO()">Complete Work Order</button>
+    </div>
+  </div>
+</div>
+}

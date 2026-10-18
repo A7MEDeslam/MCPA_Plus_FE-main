@@ -1,0 +1,15 @@
+@if (!isLoginPage()) {
+  <app-topbar></app-topbar>
+
+  <div class="layout">
+    <app-sidebar></app-sidebar>
+
+    <main class="main">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+} @else {
+  <router-outlet></router-outlet>
+}
+
+<div id="toast" [class.visible]="toastService.toastVisible()">{{toastService.toastMsg()}}</div>

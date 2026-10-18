@@ -1,0 +1,131 @@
+<div class="page active" id="page-projects">
+  <div class="page-header flex-between">
+    <div>
+      <h1><i class="pi pi-briefcase"></i> Production Projects</h1>
+      <p>Manage projects and track assigned serial numbers</p>
+    </div>
+    <button *ngIf="canManageProjects" class="btn btn-create" (click)="openNewProjectModal()"><i class="pi pi-plus"></i>
+      New Project</button>
+  </div>
+
+  <div class="stats-section">
+    <div class="stat-card">
+      <div class="stat-label">Total Projects</div>
+      <div class="stat-value">{{projectService.Projects().length}}</div>
+      <div class="stat-sub">Active projects</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-label">Total Serials</div>
+      <div class="stat-value">{{projectService.Projects().reduce((a, p) => a + p.serialNumbersCount, 0)}}</div>
+      <div class="stat-sub">Assigned to projects</div>
+    </div>
+  </div>
+
+  <div class="card projects-card">
+    <div class="card-header">
+      <div class="header-left">
+        <span class="card-title">Projects List</span>
+        <span class="count-badge">{{filteredProjects.length}} projects</span>
+      </div>
+      <div class="search-input-wrapper">
+        <i class="pi pi-search search-icon"></i>
+        <input class="search-input" placeholder="Search projects..." [(ngModel)]="projectSearch"
+          (ngModelChange)="pagination.currentPage.set(1)" />
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="projects-table">
+        <thead>
+          <tr>
+            <th class="col-name">Project Name</th>
+            <th class="col-serials">Serials Assigned</th>
+            <th>Action By</th>
+            <th>Action At</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngIf="filteredProjects.length; else noProjects">
+            <tr class="project-row" *ngFor="let p of pagedProjects"
+              [class.active]="projectService.selectedProjectId() === p.id">
+              <td class="col-name">
+                <div class="project-name" (click)="selectProject(p.id)" style="cursor:pointer">
+                  {{p.name}}
+                  <span class="active-project-badge" *ngIf="projectService.selectedProjectId() === p.id"><i
+                      class="pi pi-check-circle"></i> Active</span>
+                </div>
+              </td>
+              <td class="col-serials">
+                <span class="serial-badge">{{p.serialNumbersCount}} units</span>
+              </td>
+              <td>{{p.actionByName || '-'}}</td>
+              <td>{{p.actionAt ? (p.actionAt | date:'short') : '-'}}</td>
+              <td class="col-actions">
+                <div class="flex-gap" style="justify-content: flex-end;">
+                  <button class="btn btn-xs btn-ghost" (click)="viewProjectSerials(p.id, p.name)" title="View serials">
+                    <i class="pi pi-id-card"></i> Serials
+                  </button>
+                  <!-- <button class="btn btn-xs btn-ghost" *ngIf="projectService.selectedProjectId() !== p.id" (click)="selectProject(p.id)" title="Activate project theme">Select</button>
+                  <button class="btn btn-xs btn-primary" *ngIf="projectService.selectedProjectId() === p.id" (click)="selectProject(null)" title="Deselect active project">Deselect</button> -->
+                  <button *ngIf="canManageProjects" class="btn btn-edit" (click)="openEditProjectModal(p)"
+                    title="Edit"><i class="pi pi-pencil"></i></button>
+                  <button *ngIf="canManageProjects" class="btn btn-delete" (click)="deleteProject(p.id, p.name)"
+                    title="Delete"><i class="pi pi-trash"></i></button>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+          <ng-template #noProjects>
+            <tr class="empty-row">
+              <td colspan="5" class="empty">
+                <div class="empty-state">
+                  <i class="pi pi-inbox empty-icon"></i>
+                  <p>No projects yet. Create one to start tracking serials.</p>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+        </tbody>
+      </table>
+    </div>
+    <app-pagination [totalItems]="filteredProjects.length" [pageSize]="pagination.pageSize()"
+      [currentPage]="pagination.currentPage()" (pageChange)="pagination.currentPage.set($event)">
+    </app-pagination>
+  </div>
+</div>
+
+<ng-container *ngIf="modalOpen">
+  <div class="modal-overlay open" (click)="closeModalIfOverlay($event)">
+    <div class="modal modern-modal">
+      <div class="modal-header gradient-header">
+        <span class="modal-title"><i class="pi" [ngClass]="editingId ? 'pi-pencil' : 'pi-plus-circle'"></i> {{editingId
+          ? 'Edit' : 'Create'}} Project</span>
+        <button class="modal-close" (click)="modalOpen = false"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Project Name</label>
+        <input class="form-control" [value]="projectName" (input)="onProjectNameInput($event)"
+          placeholder="e.g., Q Production Run" autofocus />
+      </div>
+        <!-- <div class="form-group" style="margin-top:16px">
+        <label class="form-label">Project Color Theme</label>
+        <select class="form-control" [(ngModel)]="projectTheme">
+          <option value="default">Teal & Navy (Default)</option>
+          <option value="emerald">Emerald & Forest (Green)</option>
+          <option value="indigo">Indigo & Slate (Purple/Blue)</option>
+          <option value="rose">Rose & Obsidian (Crimson)</option>
+          <option value="amber">Amber & Charcoal (Orange)</option>
+          <option value="sapphire">Sapphire & Dark Blue</option>
+        </select>
+      </div> -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-cancel btn-ghost" (click)="modalOpen = false">Cancel</button>
+        <button class="btn btn-submit btn-primary" (click)="saveProject()">{{editingId ? 'Update' : 'Create'}}
+          Project</button>
+      </div>
+    </div>
+  </div>
+</ng-container>

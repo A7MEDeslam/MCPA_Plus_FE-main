@@ -1,0 +1,36 @@
+/* Serials Component Styles */
+
+.serials-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 140px;
+  color: var(--muted, #64748b);
+}
+
+.serials-loading .pi-spinner {
+  font-size: 1.2rem;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.sortable:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.sortable i {
+  margin-left: 6px;
+  font-size: 0.85rem;
+  vertical-align: middle;
+  color: var(--muted);
+  transition: color 0.15s ease;
+}
+
+.sortable:hover i {
+  color: var(--navy);
+}
